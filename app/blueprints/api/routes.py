@@ -3,7 +3,7 @@ from flask_login import current_user, login_required, login_user, logout_user
 
 from app.extensions import db
 from app.models import Ticket, User
-from app.services.permission_service import visible_area_ids
+from app.services.permission_service import can_operate_ticket, can_view_ticket, get_visible_ticket_query
 from app.services.ticket_service import add_comment, change_status, create_ticket, transfer_ticket
 from app.time_utils import format_datetime_ar, now_utc
 
@@ -56,7 +56,7 @@ def me():
 @api_bp.get("/tickets")
 @login_required
 def tickets():
-    rows = Ticket.query.filter(Ticket.responsible_area_id.in_(visible_area_ids(current_user))).order_by(Ticket.updated_at.desc()).limit(200).all()
+    rows = get_visible_ticket_query(current_user).order_by(Ticket.updated_at.desc()).limit(200).all()
     return jsonify([ticket_payload(ticket) for ticket in rows])
 
 
@@ -74,7 +74,7 @@ def create_ticket_api():
 @login_required
 def ticket_detail(ticket_id):
     ticket = Ticket.query.get_or_404(ticket_id)
-    if not current_user.can_view_area(ticket.responsible_area_id) and ticket.creator_user_id != current_user.id:
+    if not can_view_ticket(ticket, current_user):
         abort(403)
     return jsonify(ticket_payload(ticket))
 
@@ -83,6 +83,8 @@ def ticket_detail(ticket_id):
 @login_required
 def ticket_comment(ticket_id):
     ticket = Ticket.query.get_or_404(ticket_id)
+    if not can_view_ticket(ticket, current_user):
+        abort(403)
     add_comment(ticket, current_user, (request.get_json() or {}).get("comment", ""))
     db.session.commit()
     return jsonify({"ok": True})
@@ -94,6 +96,8 @@ def ticket_acknowledge(ticket_id):
     if not current_user.has_permission("can_acknowledge_ticket"):
         abort(403)
     ticket = Ticket.query.get_or_404(ticket_id)
+    if not can_operate_ticket(ticket, current_user, "can_acknowledge_ticket"):
+        abort(403)
     change_status(ticket, "Reconocido", current_user)
     db.session.commit()
     return jsonify(ticket_payload(ticket))
@@ -105,6 +109,8 @@ def ticket_resolve(ticket_id):
     if not current_user.has_permission("can_resolve_ticket"):
         abort(403)
     ticket = Ticket.query.get_or_404(ticket_id)
+    if not can_operate_ticket(ticket, current_user, "can_resolve_ticket"):
+        abort(403)
     change_status(ticket, "Resuelto", current_user, (request.get_json() or {}).get("comment"))
     db.session.commit()
     return jsonify(ticket_payload(ticket))
@@ -117,6 +123,8 @@ def ticket_transfer(ticket_id):
         abort(403)
     data = request.get_json() or {}
     ticket = Ticket.query.get_or_404(ticket_id)
+    if not can_operate_ticket(ticket, current_user, "can_transfer_ticket"):
+        abort(403)
     transfer_ticket(ticket, data.get("to_area_id"), data.get("reason"), current_user)
     db.session.commit()
     return jsonify(ticket_payload(ticket))

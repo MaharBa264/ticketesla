@@ -3,7 +3,13 @@ from flask_login import current_user, login_required
 
 from app.extensions import db
 from app.models import Area, Ticket, TicketAttachment, TicketTemplate, TICKET_STATUSES, TICKET_SUBTYPES, TICKET_TYPES, PRIORITIES
-from app.services.permission_service import require_permission, visible_area_ids
+from app.services.permission_service import (
+    can_operate_ticket,
+    can_see_expanded_tickets,
+    can_view_ticket,
+    get_visible_ticket_query,
+    require_permission,
+)
 from app.services.audit_service import log_action
 from app.services.ticket_service import add_comment, allowed_status_actions, change_status, create_ticket, is_status_action_allowed, save_attachments, transfer_ticket, validate_ticket_minimum_content
 
@@ -12,7 +18,7 @@ tickets_bp = Blueprint("tickets", __name__, url_prefix="/tickets")
 
 def get_visible_ticket(ticket_id):
     ticket = Ticket.query.get_or_404(ticket_id)
-    if not current_user.can_view_area(ticket.responsible_area_id) and ticket.creator_user_id != current_user.id:
+    if not can_view_ticket(ticket, current_user):
         abort(403)
     return ticket
 
@@ -20,11 +26,14 @@ def get_visible_ticket(ticket_id):
 @tickets_bp.get("/")
 @login_required
 def index():
-    query = Ticket.query
+    requested_scope = request.args.get("scope")
     if request.args.get("mine"):
-        query = query.filter_by(creator_user_id=current_user.id)
-    else:
-        query = query.filter(Ticket.responsible_area_id.in_(visible_area_ids(current_user)))
+        requested_scope = "mine"
+    default_scope = "visible" if can_see_expanded_tickets(current_user) else "mine"
+    scope = requested_scope or default_scope
+    if scope not in ("mine", "attend", "visible"):
+        scope = default_scope
+    query = get_visible_ticket_query(current_user, scope=scope)
     if request.args.get("status"):
         query = query.filter_by(status=request.args["status"])
     if request.args.get("ticket_type"):
@@ -36,7 +45,15 @@ def index():
         like = f"%{text}%"
         query = query.filter((Ticket.title.ilike(like)) | (Ticket.description.ilike(like)) | (Ticket.number.ilike(like)) | (Ticket.station.ilike(like)) | (Ticket.affected_equipment.ilike(like)) | (Ticket.location.ilike(like)) | (Ticket.tags.ilike(like)))
     tickets = query.order_by(Ticket.updated_at.desc()).limit(200).all()
-    return render_template("tickets/index.html", tickets=tickets, statuses=TICKET_STATUSES, types=TICKET_TYPES, areas=Area.query.order_by(Area.name).all())
+    return render_template(
+        "tickets/index.html",
+        tickets=tickets,
+        statuses=TICKET_STATUSES,
+        types=TICKET_TYPES,
+        areas=Area.query.order_by(Area.name).all(),
+        scope=scope,
+        can_see_expanded=can_see_expanded_tickets(current_user),
+    )
 
 
 @tickets_bp.route("/new", methods=["GET", "POST"])
@@ -71,7 +88,16 @@ def search():
 def detail(ticket_id):
     ticket = get_visible_ticket(ticket_id)
     areas = Area.query.filter_by(active=True).order_by(Area.name).all()
-    return render_template("tickets/detail.html", ticket=ticket, areas=areas, statuses=TICKET_STATUSES, status_actions=allowed_status_actions(ticket, current_user))
+    return render_template(
+        "tickets/detail.html",
+        ticket=ticket,
+        areas=areas,
+        statuses=TICKET_STATUSES,
+        status_actions=allowed_status_actions(ticket, current_user),
+        can_operate=can_operate_ticket(ticket, current_user),
+        can_edit_ticket=can_operate_ticket(ticket, current_user, "can_edit_ticket"),
+        can_transfer_ticket=can_operate_ticket(ticket, current_user, "can_transfer_ticket"),
+    )
 
 
 @tickets_bp.route("/<int:ticket_id>/edit", methods=["GET", "POST"])
@@ -79,6 +105,8 @@ def detail(ticket_id):
 @require_permission("can_edit_ticket")
 def edit(ticket_id):
     ticket = get_visible_ticket(ticket_id)
+    if not can_operate_ticket(ticket, current_user, "can_edit_ticket"):
+        abort(403)
     areas = Area.query.filter_by(active=True).order_by(Area.name).all()
     templates = TicketTemplate.query.filter_by(active=True).order_by(TicketTemplate.name).all()
     if request.method == "POST":
@@ -129,6 +157,8 @@ def status(ticket_id):
 @require_permission("can_transfer_ticket")
 def transfer(ticket_id):
     ticket = get_visible_ticket(ticket_id)
+    if not can_operate_ticket(ticket, current_user, "can_transfer_ticket"):
+        abort(403)
     try:
         transfer_ticket(ticket, request.form.get("to_area_id"), request.form.get("reason"), current_user)
         db.session.commit()

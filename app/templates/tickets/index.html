@@ -11,13 +11,21 @@
     {% if has_perm('can_create_ticket') %}<a class="btn btn-primary" href="{{ url_for('tickets.create') }}">Nuevo ticket</a>{% endif %}
   </div>
 </div>
+<div class="page-actions mb-3">
+  <a class="btn {% if scope == 'mine' %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="{{ url_for('tickets.index', scope='mine') }}">Mis tickets</a>
+  {% if can_see_expanded %}
+  <a class="btn {% if scope == 'attend' %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="{{ url_for('tickets.index', scope='attend') }}">Tickets que puedo atender</a>
+  <a class="btn {% if scope == 'visible' %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="{{ url_for('tickets.index', scope='visible') }}">Todos los visibles</a>
+  {% endif %}
+</div>
 <form class="filter-bar mb-3">
+  <input type="hidden" name="scope" value="{{ scope }}">
   <input class="form-control" name="q" value="{{ request.args.get('q','') }}" placeholder="Texto, número, estación, equipo o tags">
   <select class="form-select" name="status"><option value="">Estado</option>{% for s in statuses %}<option value="{{ s }}" {% if request.args.get('status')==s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
   <select class="form-select" name="ticket_type"><option value="">Tipo</option>{% for t in types %}<option value="{{ t }}" {% if request.args.get('ticket_type')==t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select>
   <select class="form-select" name="area_id"><option value="">Área</option>{% for a in areas %}<option value="{{ a.id }}" {% if request.args.get('area_id')==a.id|string %}selected{% endif %}>{{ a.name }}</option>{% endfor %}</select>
   <button class="btn btn-outline-primary">Filtrar</button>
-  <a class="btn btn-outline-secondary" href="{{ url_for('tickets.index', mine=1) }}">Mis tickets</a>
+  <a class="btn btn-outline-secondary" href="{{ url_for('tickets.index', scope=scope) }}">Limpiar</a>
 </form>
 {% include "tickets/_table.html" %}
 {% endblock %}

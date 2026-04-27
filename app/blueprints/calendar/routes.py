@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, render_template, request
 from flask_login import current_user, login_required
 
 from app.models import Area, Ticket, TICKET_STATUSES
-from app.services.permission_service import visible_area_ids
+from app.services.permission_service import get_visible_ticket_query
 from app.time_utils import utc_to_local
 
 calendar_bp = Blueprint("calendar", __name__, url_prefix="/calendar")
@@ -17,7 +17,7 @@ def index():
 @calendar_bp.get("/events")
 @login_required
 def events():
-    query = Ticket.query.filter(Ticket.due_at != None, Ticket.responsible_area_id.in_(visible_area_ids(current_user)))
+    query = get_visible_ticket_query(current_user).filter(Ticket.due_at != None)
     if request.args.get("area_id"):
         query = query.filter_by(responsible_area_id=int(request.args["area_id"]))
     if request.args.get("status"):

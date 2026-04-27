@@ -92,7 +92,7 @@ class User(UserMixin, db.Model):
         return permission_name in names
 
     def can_view_area(self, area_id):
-        if self.main_area_id == area_id:
+        if self.has_permission("can_view_all_tickets") or self.has_permission("can_manage_users"):
             return True
         return self.has_permission("can_view_other_areas") and any(a.id == area_id for a in self.visible_areas)
 

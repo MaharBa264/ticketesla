@@ -30,6 +30,7 @@
           {% for area in areas %}<option value="{{ area.id }}">{{ area.name }}</option>{% endfor %}
         </select>
         <div class="form-text" id="responsible-area-help">Área que ejecutó o deja registrado el cambio.</div>
+        <div class="responsible-area-info d-none" id="responsible-area-info">Elegí el área que debe atender esta solicitud. El ticket quedará pendiente para esa área, pero vas a poder seguir viéndolo en "Mis tickets".</div>
       </div>
       <div class="col-md-6"><label class="form-label">Subtipo</label><select class="form-select" name="subtype" id="subtype" required>{% for subtype in subtypes %}<option>{{ subtype }}</option>{% endfor %}</select></div>
       <div class="col-12">

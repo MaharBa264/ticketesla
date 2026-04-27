@@ -2,10 +2,9 @@ from datetime import timedelta
 
 from flask import Blueprint, render_template
 from flask_login import current_user, login_required
-from sqlalchemy import func
 
 from app.models import Ticket
-from app.services.permission_service import visible_area_ids
+from app.services.permission_service import can_see_expanded_tickets, get_visible_ticket_query
 from app.time_utils import now_utc
 
 dashboard_bp = Blueprint("dashboard", __name__)
@@ -14,8 +13,8 @@ dashboard_bp = Blueprint("dashboard", __name__)
 @dashboard_bp.get("/")
 @login_required
 def index():
-    area_ids = visible_area_ids(current_user)
-    base = Ticket.query.filter(Ticket.responsible_area_id.in_(area_ids))
+    scope = "visible" if can_see_expanded_tickets(current_user) else "mine"
+    base = get_visible_ticket_query(current_user, scope=scope)
     now = now_utc()
     counts = {
         "Nuevos": base.filter_by(status="Nuevo").count(),

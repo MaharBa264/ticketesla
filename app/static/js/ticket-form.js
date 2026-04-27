@@ -7,6 +7,7 @@ const responsibleAreaWrap = document.querySelector("#responsible-area-wrap");
 const responsibleAreaSelect = document.querySelector("#responsible_area_id");
 const responsibleAreaLabel = document.querySelector("#responsible-area-label");
 const responsibleAreaHelp = document.querySelector("#responsible-area-help");
+const responsibleAreaInfo = document.querySelector("#responsible-area-info");
 const contextTitle = document.querySelector("#ticket-context-title");
 const dueAtWrap = document.querySelector("#due-at-wrap");
 const dueAtInput = document.querySelector("#due_at");
@@ -81,7 +82,8 @@ function updateTicketContext() {
 
   if (contextTitle) contextTitle.textContent = isRequest ? "Área responsable y plantilla" : "Plantilla del registro";
   if (responsibleAreaLabel) responsibleAreaLabel.textContent = isRequest ? "Área responsable" : "Área del registro";
-  if (responsibleAreaHelp) responsibleAreaHelp.textContent = isRequest ? "Área a la que se envía la solicitud." : "Para registros de cambio se usa automáticamente tu área.";
+  if (responsibleAreaHelp) responsibleAreaHelp.textContent = isRequest ? "Área que debe atender esta solicitud." : "Para registros de cambio se usa automáticamente tu área.";
+  if (responsibleAreaInfo) responsibleAreaInfo.classList.toggle("d-none", !isRequest);
   if (responsibleAreaWrap) responsibleAreaWrap.classList.toggle("d-none", !isRequest);
   if (responsibleAreaSelect) {
     responsibleAreaSelect.required = isRequest;

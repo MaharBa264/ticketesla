@@ -11,6 +11,7 @@ from app.extensions import db
 from app.models import Ticket, TicketAttachment, TicketComment, TicketStatusHistory, TicketTemplate, TicketTransfer
 from app.services.audit_service import log_action
 from app.services.notification_service import notification_service
+from app.services.permission_service import can_operate_ticket
 from app.time_utils import LOCAL_TZ, now_utc
 
 ALLOWED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".txt", ".csv", ".xlsx", ".docx", ".zip"}
@@ -172,24 +173,24 @@ def allowed_status_actions(ticket, user):
     actions = []
 
     if ticket.ticket_type == "Registro de cambio":
-        if ticket.status != "Cerrado" and user.has_permission("can_resolve_ticket"):
+        if ticket.status != "Cerrado" and can_operate_ticket(ticket, user, "can_resolve_ticket"):
             actions.append(("Cerrado", "Cerrar"))
-        if ticket.status == "Cerrado" and user.has_permission("can_reopen_ticket"):
+        if ticket.status == "Cerrado" and can_operate_ticket(ticket, user, "can_reopen_ticket"):
             actions.append(("Reabierto", "Reabrir"))
         return actions
 
     status = ticket.status
-    if status in ("Nuevo", "Derivado", "Reabierto") and user.has_permission("can_acknowledge_ticket"):
+    if status in ("Nuevo", "Derivado", "Reabierto") and can_operate_ticket(ticket, user, "can_acknowledge_ticket"):
         actions.append(("Reconocido", "Reconocer"))
-    if status in ("Reconocido", "Derivado", "Pendiente de tercero", "Reabierto") and user.has_permission("can_resolve_ticket"):
+    if status in ("Reconocido", "Derivado", "Pendiente de tercero", "Reabierto") and can_operate_ticket(ticket, user, "can_resolve_ticket"):
         actions.append(("En curso", "Marcar en curso"))
-    if status in ("Reconocido", "En curso") and user.has_permission("can_resolve_ticket"):
+    if status in ("Reconocido", "En curso") and can_operate_ticket(ticket, user, "can_resolve_ticket"):
         actions.append(("Pendiente de tercero", "Pendiente de tercero"))
-    if status in ("Reconocido", "En curso", "Pendiente de tercero", "Derivado", "Reabierto") and user.has_permission("can_resolve_ticket"):
+    if status in ("Reconocido", "En curso", "Pendiente de tercero", "Derivado", "Reabierto") and can_operate_ticket(ticket, user, "can_resolve_ticket"):
         actions.append(("Resuelto", "Resolver"))
-    if status == "Resuelto" and user.has_permission("can_resolve_ticket"):
+    if status == "Resuelto" and can_operate_ticket(ticket, user, "can_resolve_ticket"):
         actions.append(("Cerrado", "Cerrar"))
-    if status == "Cerrado" and user.has_permission("can_reopen_ticket"):
+    if status == "Cerrado" and can_operate_ticket(ticket, user, "can_reopen_ticket"):
         actions.append(("Reabierto", "Reabrir"))
     return actions
 
