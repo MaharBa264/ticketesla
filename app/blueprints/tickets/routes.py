@@ -46,11 +46,15 @@ def create():
     areas = Area.query.filter_by(active=True).order_by(Area.name).all()
     templates = TicketTemplate.query.filter_by(active=True).order_by(TicketTemplate.name).all()
     if request.method == "POST":
-        ticket = create_ticket(request.form, current_user)
-        save_attachments(ticket, request.files.getlist("attachments"), current_user)
-        db.session.commit()
-        flash(f"Ticket {ticket.number} creado.", "success")
-        return redirect(url_for("tickets.detail", ticket_id=ticket.id))
+        try:
+            ticket = create_ticket(request.form, current_user)
+            save_attachments(ticket, request.files.getlist("attachments"), current_user)
+            db.session.commit()
+            flash(f"Ticket {ticket.number} creado.", "success")
+            return redirect(url_for("tickets.detail", ticket_id=ticket.id))
+        except ValueError as exc:
+            db.session.rollback()
+            flash(str(exc), "warning")
     return render_template("tickets/create.html", areas=areas, templates=templates, types=TICKET_TYPES, subtypes=TICKET_SUBTYPES, priorities=PRIORITIES)
 
 

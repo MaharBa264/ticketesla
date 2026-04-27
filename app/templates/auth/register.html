@@ -1,19 +1,29 @@
 {% extends "base.html" %}
+{% block title %}Crear usuario · Ticketesla{% endblock %}
 {% block content %}
 <div class="narrow">
-  <h1>Crear usuario</h1>
+  <div class="page-head">
+    <div>
+      <span class="page-kicker">Acceso</span>
+      <h1>Crear usuario</h1>
+      <p class="lead-muted mb-0">Alta inicial para operar tickets técnicos. El correo Gmail es obligatorio.</p>
+    </div>
+  </div>
   <form method="post" class="form-panel">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="row g-3">
       <div class="col-md-6"><label class="form-label">Nombre completo</label><input class="form-control" name="full_name" required></div>
       <div class="col-md-6"><label class="form-label">Usuario</label><input class="form-control" name="username" required></div>
-      <div class="col-md-6"><label class="form-label">Gmail</label><input class="form-control" type="email" name="gmail" required></div>
-      <div class="col-md-6"><label class="form-label">Correo corporativo</label><input class="form-control" type="email" name="corporate_email"></div>
-      <div class="col-md-6"><label class="form-label">Teléfono</label><input class="form-control" name="phone"></div>
+      <div class="col-md-6"><label class="form-label">Gmail</label><input class="form-control" type="email" name="gmail" required placeholder="usuario@gmail.com"></div>
+      <div class="col-md-6"><label class="form-label">Correo corporativo</label><input class="form-control" type="email" name="corporate_email" placeholder="Opcional"></div>
+      <div class="col-md-6"><label class="form-label">Teléfono</label><input class="form-control" name="phone" placeholder="Opcional"></div>
       <div class="col-md-6"><label class="form-label">Área principal</label><select class="form-select" name="main_area_id" required>{% for area in areas %}<option value="{{ area.id }}">{{ area.name }}</option>{% endfor %}</select></div>
       <div class="col-md-6"><label class="form-label">Contraseña</label><input class="form-control" type="password" name="password" required></div>
     </div>
-    <button class="btn btn-primary mt-4">Crear usuario</button>
+    <div class="d-flex gap-2 flex-wrap mt-4">
+      <button class="btn btn-primary">Crear usuario</button>
+      <a class="btn btn-outline-secondary" href="{{ url_for('auth.login') }}">Volver al ingreso</a>
+    </div>
   </form>
 </div>
 {% endblock %}

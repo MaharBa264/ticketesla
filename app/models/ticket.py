@@ -39,6 +39,7 @@ class Ticket(db.Model):
     station = db.Column(db.String(160))
     affected_equipment = db.Column(db.String(160))
     template_id = db.Column(db.Integer, db.ForeignKey("ticket_templates.id"))
+    structured_data = db.Column(db.JSON)
 
     creator_area = db.relationship("Area", foreign_keys=[creator_area_id])
     responsible_area = db.relationship("Area", foreign_keys=[responsible_area_id])

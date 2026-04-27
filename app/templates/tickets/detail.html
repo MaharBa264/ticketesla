@@ -1,19 +1,35 @@
 {% extends "base.html" %}
+{% block title %}{{ ticket.number }} · Ticketesla{% endblock %}
 {% block content %}
+{% set status_class = 'status-' ~ ticket.status|lower|replace(' ', '-')|replace('á','a')|replace('é','e')|replace('í','i')|replace('ó','o')|replace('ú','u') %}
 <div class="ticket-header">
-  <div><h1>{{ ticket.number }}</h1><p class="h4 mb-0">{{ ticket.title }}</p></div>
-  <span class="status-pill">{{ ticket.status }}</span>
+  <div>
+    <span class="page-kicker">{{ ticket.ticket_type }}</span>
+    <h1>{{ ticket.number }}</h1>
+    <p class="ticket-title">{{ ticket.title }}</p>
+  </div>
+  <span class="status-pill {{ status_class }}">{{ ticket.status }}</span>
 </div>
 <div class="row g-4">
   <div class="col-lg-8">
-    <section class="content-panel"><h2>Descripción</h2><p class="preline">{{ ticket.description }}</p></section>
+    {% if ticket.structured_data and ticket.structured_data.fields %}
+    <section class="content-panel"><h2>Datos estructurados</h2>
+      <dl class="structured-readonly">
+        {% for item in ticket.structured_data.fields %}
+        <dt>{{ item.label }}</dt>
+        <dd>{% if item.type == "checkbox" %}{{ "Sí" if item.value else "No" }}{% else %}{{ item.value or "-" }}{% endif %}</dd>
+        {% endfor %}
+      </dl>
+    </section>
+    {% endif %}
+    <section class="content-panel"><h2>Descripción</h2><p class="preline mb-0">{{ ticket.description }}</p></section>
     <section class="content-panel"><h2>Comentarios</h2>
-      {% for c in ticket.comments|sort(attribute='created_at') %}<div class="comment"><strong>{{ c.user.full_name }}</strong><span>{{ c.created_at|datetime_ar }}</span><p>{{ c.comment }}</p></div>{% endfor %}
-      <form method="post" action="{{ url_for('tickets.comment', ticket_id=ticket.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><textarea class="form-control" name="comment" rows="3" required></textarea><button class="btn btn-primary mt-2">Agregar comentario</button></form>
+      {% for c in ticket.comments|sort(attribute='created_at') %}<div class="comment"><strong>{{ c.user.full_name }}</strong><span>{{ c.created_at|datetime_ar }}</span><p class="mb-0 mt-2">{{ c.comment }}</p></div>{% else %}<p class="text-muted">Todavía no hay comentarios.</p>{% endfor %}
+      <form method="post" action="{{ url_for('tickets.comment', ticket_id=ticket.id) }}" class="mt-3"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><textarea class="form-control" name="comment" rows="3" required placeholder="Agregar comentario o novedad"></textarea><button class="btn btn-primary mt-2">Agregar comentario</button></form>
     </section>
     <section class="content-panel"><h2>Historial</h2>
-      {% for h in ticket.status_history|sort(attribute='created_at') %}<p class="mb-2">{{ h.created_at|datetime_ar }} · {{ h.user.full_name }} · {{ h.old_status or "Inicio" }} → {{ h.new_status }}{% if h.comment %}: {{ h.comment }}{% endif %}</p>{% endfor %}
-      {% for tr in ticket.transfers|sort(attribute='created_at') %}<p class="mb-2">{{ tr.created_at|datetime_ar }} · Derivado de {{ tr.from_area.name }} a {{ tr.to_area.name }}: {{ tr.reason }}</p>{% endfor %}
+      {% for h in ticket.status_history|sort(attribute='created_at') %}<p class="timeline-item"><strong>{{ h.created_at|datetime_ar }}</strong> · {{ h.user.full_name }} · {{ h.old_status or "Inicio" }} → {{ h.new_status }}{% if h.comment %}: {{ h.comment }}{% endif %}</p>{% endfor %}
+      {% for tr in ticket.transfers|sort(attribute='created_at') %}<p class="timeline-item"><strong>{{ tr.created_at|datetime_ar }}</strong> · Derivado de {{ tr.from_area.name }} a {{ tr.to_area.name }}: {{ tr.reason }}</p>{% endfor %}
     </section>
   </div>
   <div class="col-lg-4">
@@ -34,16 +50,17 @@
         {% endif %}
       </form>
       {% if has_perm('can_transfer_ticket') %}
+      <div class="soft-divider"></div>
       <form method="post" action="{{ url_for('tickets.transfer', ticket_id=ticket.id) }}" class="mt-3">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label class="form-label">Enviar a otra área</label><select class="form-select" name="to_area_id">{% for area in areas %}<option value="{{ area.id }}">{{ area.name }}</option>{% endfor %}</select>
         <textarea class="form-control mt-2" name="reason" rows="3" placeholder="Explicación obligatoria" required></textarea>
-        <button class="btn btn-warning mt-2">Derivar</button>
+        <button class="btn btn-warning mt-2 w-100">Derivar</button>
       </form>
       {% endif %}
     </section>
     <section class="content-panel"><h2>Adjuntos</h2>
-      {% for a in ticket.attachments %}<a class="d-block" href="{{ url_for('tickets.download_attachment', attachment_id=a.id) }}">{{ a.filename_original }}</a>{% else %}<p class="text-muted">Sin adjuntos.</p>{% endfor %}
+      {% for a in ticket.attachments %}<a class="d-block fw-semibold mb-1" href="{{ url_for('tickets.download_attachment', attachment_id=a.id) }}">{{ a.filename_original }}</a>{% else %}<p class="text-muted">Sin adjuntos.</p>{% endfor %}
       <form method="post" enctype="multipart/form-data" action="{{ url_for('tickets.attachments', ticket_id=ticket.id) }}" class="mt-3"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input class="form-control" type="file" name="attachments" multiple><button class="btn btn-outline-primary mt-2">Subir</button></form>
     </section>
   </div>

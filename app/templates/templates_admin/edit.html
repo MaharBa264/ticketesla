@@ -1,53 +1,41 @@
 {% extends "base.html" %}
+{% block title %}Editar plantilla · Ticketesla{% endblock %}
 {% block content %}
 <div class="narrow">
-  <div class="ticket-header">
+  <div class="page-head">
     <div>
+      <span class="page-kicker">Plantillas</span>
       <h1>Editar plantilla</h1>
-      <p class="text-muted mb-0">Ajustá el texto guía sin afectar los tickets ya creados.</p>
+      <p class="lead-muted mb-0">{{ template.name }}</p>
     </div>
-    <a class="btn btn-outline-secondary" href="{{ url_for('templates_admin.index') }}">Volver</a>
   </div>
-
-  <form method="post" class="form-panel">
+  <form method="post" class="form-panel" id="template-editor">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-    <label class="form-label">Nombre visible</label>
-    <input class="form-control" name="name" value="{{ template.name }}" required>
+    <label class="form-label">Nombre</label>
+    <input class="form-control" name="name" required value="{{ template.name }}">
 
     <div class="row g-3 mt-1">
-      <div class="col-md-4">
-        <label class="form-label">Área</label>
-        <select class="form-select" name="area_id" required>
-          {% for a in areas %}<option value="{{ a.id }}" {% if template.area_id == a.id %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="col-md-4">
-        <label class="form-label">Tipo de ticket</label>
-        <select class="form-select" name="suggested_type" required>
-          {% for t in types %}<option {% if template.suggested_type == t %}selected{% endif %}>{{ t }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="col-md-4">
-        <label class="form-label">Subtipo</label>
-        <select class="form-select" name="suggested_subtype" required>
-          {% for s in subtypes %}<option {% if template.suggested_subtype == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
-        </select>
-      </div>
+      <div class="col-md-6"><label class="form-label">Área</label><select class="form-select" name="area_id">{% for a in areas %}<option value="{{ a.id }}" {% if template.area_id == a.id %}selected{% endif %}>{{ a.name }}</option>{% endfor %}</select></div>
+      <div class="col-md-6"><label class="form-label">Estado</label><div class="structured-check form-check mt-2"><input class="form-check-input" type="checkbox" name="active" {% if template.active %}checked{% endif %} id="active"><label class="form-check-label" for="active">Activa</label></div></div>
+      <div class="col-md-6"><label class="form-label">Tipo sugerido</label><select class="form-select" name="suggested_type">{% for t in types %}<option {% if template.suggested_type == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>
+      <div class="col-md-6"><label class="form-label">Subtipo sugerido</label><select class="form-select" name="suggested_subtype">{% for s in subtypes %}<option {% if template.suggested_subtype == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
     </div>
 
-    <label class="form-label mt-3">Texto base</label>
-    <textarea class="form-control template-body" name="body" rows="12" required>{{ template.body }}</textarea>
+    <label class="form-label mt-3">Texto guía opcional</label>
+    <textarea class="form-control" name="body" rows="4">{{ template.body or '' }}</textarea>
 
-    <div class="form-check mt-3">
-      <input class="form-check-input" type="checkbox" name="active" id="active" {% if template.active %}checked{% endif %}>
-      <label class="form-check-label" for="active">Activa</label>
+    <div class="template-fields-head mt-4">
+      <div><h2 class="mb-1">Campos a completar</h2><small class="text-muted">Podés agregar o quitar campos según la tarea.</small></div>
+      <button class="btn btn-outline-primary btn-sm" type="button" data-add-field>Agregar campo</button>
     </div>
 
-    <div class="d-flex gap-2 mt-4">
+    <div id="template-fields" data-field-types='{{ field_types|tojson|forceescape }}' data-existing='{{ (template.schema_json.fields if template.schema_json and template.schema_json.fields else [])|tojson|forceescape }}'></div>
+
+    <div class="d-flex gap-2 mt-3">
       <button class="btn btn-primary">Guardar cambios</button>
-      <a class="btn btn-outline-secondary" href="{{ url_for('templates_admin.index') }}">Cancelar</a>
+      <a class="btn btn-outline-secondary" href="{{ url_for('templates_admin.index') }}">Volver</a>
     </div>
   </form>
 </div>
 {% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/template-admin.js') }}"></script>{% endblock %}

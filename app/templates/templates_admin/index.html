@@ -1,85 +1,48 @@
 {% extends "base.html" %}
+{% block title %}Plantillas · Ticketesla{% endblock %}
 {% block content %}
-<div class="ticket-header">
+<div class="page-head">
   <div>
+    <span class="page-kicker">Configuración</span>
     <h1>Plantillas</h1>
-    <p class="text-muted mb-0">Textos guía para que crear tickets sea rápido, claro y consistente.</p>
+    <p class="lead-muted mb-0">Formularios guiados para que los tickets salgan completos desde el primer intento.</p>
   </div>
 </div>
-
 <div class="row g-4">
   <div class="col-lg-5">
-    <form method="post" class="form-panel sticky-lg-top template-editor-panel">
+    <form method="post" class="form-panel" id="template-editor">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <h2>Nueva plantilla</h2>
-      <p class="text-muted small">Definí el área, tipo y subtipo para que luego aparezca ordenada en “Nuevo ticket”.</p>
-
-      <label class="form-label">Nombre visible</label>
-      <input class="form-control" name="name" placeholder="Ej: Corrección de señal SCADA" required>
-
+      <label class="form-label">Nombre</label><input class="form-control" name="name" required placeholder="Ej.: Cambio de IP de equipo">
       <div class="row g-3 mt-1">
-        <div class="col-md-6">
-          <label class="form-label">Área</label>
-          <select class="form-select" name="area_id" required>
-            {% for a in areas %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
-          </select>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label">Subtipo</label>
-          <select class="form-select" name="suggested_subtype" required>
-            {% for s in subtypes %}<option>{{ s }}</option>{% endfor %}
-          </select>
-        </div>
+        <div class="col-md-6"><label class="form-label">Área</label><select class="form-select" name="area_id">{% for a in areas %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}</select></div>
+        <div class="col-md-6"><label class="form-label">Estado</label><div class="structured-check form-check mt-2"><input class="form-check-input" type="checkbox" name="active" checked id="active"><label class="form-check-label" for="active">Activa</label></div></div>
+        <div class="col-md-6"><label class="form-label">Tipo sugerido</label><select class="form-select" name="suggested_type">{% for t in types %}<option>{{ t }}</option>{% endfor %}</select></div>
+        <div class="col-md-6"><label class="form-label">Subtipo sugerido</label><select class="form-select" name="suggested_subtype">{% for s in subtypes %}<option>{{ s }}</option>{% endfor %}</select></div>
       </div>
-
-      <label class="form-label mt-3">Tipo de ticket</label>
-      <select class="form-select" name="suggested_type" required>
-        {% for t in types %}<option>{{ t }}</option>{% endfor %}
-      </select>
-
-      <label class="form-label mt-3">Texto base</label>
-      <textarea class="form-control template-body" name="body" rows="10" required placeholder="Equipo:\nSituación actual:\nCambio o intervención solicitada:\nValidación esperada:"></textarea>
-      <div class="form-text">Usá renglones cortos y campos con dos puntos. El usuario los completa sin pensar demasiado.</div>
-
-      <div class="form-check mt-3">
-        <input class="form-check-input" type="checkbox" name="active" checked id="active">
-        <label class="form-check-label" for="active">Activa</label>
-      </div>
-      <button class="btn btn-primary mt-3 w-100">Crear plantilla</button>
+      <label class="form-label mt-3">Texto guía opcional</label>
+      <textarea class="form-control" name="body" rows="4" placeholder="Instrucción breve para el usuario. Ej.: Complete los datos del equipo y la validación realizada."></textarea>
+      <div class="template-fields-head mt-4"><div><h2 class="mb-1">Campos a completar</h2><small class="text-muted">Estos campos aparecerán al crear el ticket.</small></div><button class="btn btn-outline-primary btn-sm" type="button" data-add-field>Agregar campo</button></div>
+      <div id="template-fields" data-field-types='{{ field_types|tojson|forceescape }}'></div>
+      <button class="btn btn-primary mt-3">Crear plantilla</button>
     </form>
   </div>
-
   <div class="col-lg-7">
-    <div class="content-panel mb-3">
-      <h2 class="mb-1">Plantillas existentes</h2>
-      <p class="text-muted mb-0">Podés editar el texto, desactivar una plantilla vieja o usarla como base para ordenar el trabajo del área.</p>
-    </div>
-
-    <div class="template-list">
+    <div class="template-card-grid">
       {% for t in templates %}
-      <div class="template-card {{ '' if t.active else 'is-inactive' }}">
-        <div class="template-card-main">
-          <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
-            <strong>{{ t.name }}</strong>
-            <span class="badge text-bg-light">{{ t.area.name }}</span>
-            <span class="badge text-bg-light">{{ t.suggested_type }}</span>
-            <span class="badge text-bg-light">{{ t.suggested_subtype }}</span>
-            {% if not t.active %}<span class="badge text-bg-secondary">Inactiva</span>{% endif %}
-          </div>
-          <div class="template-preview">{{ t.body }}</div>
+      {% set fields = t.schema_json.fields if t.schema_json and t.schema_json.fields else [] %}
+      {% set field_count = fields|length %}
+      <article class="template-card {% if not t.active %}is-inactive{% endif %}">
+        <div class="template-card-top"><div><h2>{{ t.name }}</h2><p class="mb-0 text-muted"><span class="area-pill">{{ t.area.name }}</span> <span class="type-pill">{{ t.suggested_type }}</span> <span class="type-pill">{{ t.suggested_subtype }}</span></p></div><span class="status-badge {{ 'status-resuelto' if t.active else 'status-cerrado' }}">{{ 'Activa' if t.active else 'Inactiva' }}</span></div>
+        <p class="template-preview preline">{{ t.body or 'Sin texto guía.' }}</p>
+        <div class="template-fields-summary"><strong>{{ field_count }}</strong> campo{{ '' if field_count == 1 else 's' }} estructurado{{ '' if field_count == 1 else 's' }}
+          {% if fields %}<div class="mt-2">{% for f in fields[:6] %}<span class="field-chip">{{ f.label }}{% if f.required %} *{% endif %}</span>{% endfor %}{% if field_count > 6 %}<span class="field-chip">+{{ field_count - 6 }}</span>{% endif %}</div>{% endif %}
         </div>
-        <div class="template-actions">
-          <a class="btn btn-outline-primary btn-sm" href="{{ url_for('templates_admin.edit', template_id=t.id) }}">Editar</a>
-          <form method="post" action="{{ url_for('templates_admin.toggle', template_id=t.id) }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="btn btn-outline-secondary btn-sm">{{ "Desactivar" if t.active else "Activar" }}</button>
-          </form>
-        </div>
-      </div>
-      {% else %}
-      <div class="content-panel text-muted">Todavía no hay plantillas cargadas.</div>
-      {% endfor %}
+        <div class="d-flex gap-2 mt-3"><a class="btn btn-outline-primary btn-sm" href="{{ url_for('templates_admin.edit', template_id=t.id) }}">Editar</a><form method="post" action="{{ url_for('templates_admin.toggle', template_id=t.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-outline-secondary btn-sm">{{ 'Desactivar' if t.active else 'Activar' }}</button></form></div>
+      </article>
+      {% else %}<div class="content-panel"><p class="text-muted mb-0">Todavía no hay plantillas.</p></div>{% endfor %}
     </div>
   </div>
 </div>
 {% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/template-admin.js') }}"></script>{% endblock %}

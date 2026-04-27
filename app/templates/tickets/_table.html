@@ -1,21 +1,21 @@
 <div class="table-responsive table-panel">
   <table class="table align-middle mb-0">
-    <thead><tr><th>Número</th><th>Título</th><th>Tipo</th><th>Subtipo</th><th>Área responsable</th><th>Estado</th><th>Fecha límite</th><th>Última actualización</th><th></th></tr></thead>
+    <thead><tr><th>Número</th><th>Título</th><th>Tipo</th><th>Área responsable</th><th>Estado</th><th>Fecha límite</th><th>Última actualización</th><th></th></tr></thead>
     <tbody>
     {% for ticket in tickets %}
+      {% set status_class = 'status-' ~ ticket.status|lower|replace(' ', '-')|replace('á','a')|replace('é','e')|replace('í','i')|replace('ó','o')|replace('ú','u') %}
       <tr>
-        <td class="fw-semibold">{{ ticket.number }}</td>
-        <td>{{ ticket.title }}</td>
-        <td>{{ ticket.ticket_type }}</td>
-        <td>{{ ticket.subtype }}</td>
-        <td>{{ ticket.responsible_area.name }}</td>
-        <td><span class="badge text-bg-light border">{{ ticket.status }}</span></td>
-        <td>{{ ticket.due_at|datetime_ar }}</td>
-        <td>{{ ticket.updated_at|datetime_ar }}</td>
-        <td><a class="btn btn-outline-primary btn-sm" href="{{ url_for('tickets.detail', ticket_id=ticket.id) }}">Abrir</a></td>
+        <td data-label="Número"><span class="ticket-number">{{ ticket.number }}</span></td>
+        <td data-label="Título" class="ticket-title-cell"><strong>{{ ticket.title }}</strong><span>{{ ticket.subtype }} · {{ ticket.creator_area.name if ticket.creator_area else 'Sin área creadora' }}</span></td>
+        <td data-label="Tipo"><span class="type-pill">{{ ticket.ticket_type }}</span></td>
+        <td data-label="Área"><span class="area-pill">{{ ticket.responsible_area.name }}</span></td>
+        <td data-label="Estado"><span class="status-badge {{ status_class }}">{{ ticket.status }}</span></td>
+        <td data-label="Límite">{{ ticket.due_at|datetime_ar }}</td>
+        <td data-label="Actualizado">{{ ticket.updated_at|datetime_ar }}</td>
+        <td data-label="Acción"><a class="btn btn-outline-primary btn-sm" href="{{ url_for('tickets.detail', ticket_id=ticket.id) }}">Abrir</a></td>
       </tr>
     {% else %}
-      <tr><td colspan="9" class="text-center text-muted py-4">No hay tickets para mostrar.</td></tr>
+      <tr><td colspan="8" class="empty-state"><strong>No hay tickets para mostrar.</strong>Cuando se creen tickets para tu área, van a aparecer acá.</td></tr>
     {% endfor %}
     </tbody>
   </table>

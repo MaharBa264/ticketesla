@@ -1,7 +1,15 @@
 {% extends "base.html" %}
+{% block title %}Usuarios · Ticketesla{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3"><h1>Usuarios</h1><a class="btn btn-primary" href="{{ url_for('users.edit') }}">Nuevo usuario</a></div>
+<div class="page-head">
+  <div>
+    <span class="page-kicker">Administración</span>
+    <h1>Usuarios</h1>
+    <p class="lead-muted mb-0">Altas, permisos y sesiones persistentes.</p>
+  </div>
+  <div class="page-actions"><a class="btn btn-primary" href="{{ url_for('users.edit') }}">Nuevo usuario</a></div>
+</div>
 <div class="table-panel table-responsive"><table class="table mb-0"><thead><tr><th>Nombre</th><th>Usuario</th><th>Área</th><th>Gmail</th><th>Estado</th><th>Último acceso</th><th></th></tr></thead><tbody>
-{% for u in users %}<tr><td>{{ u.full_name }}</td><td>{{ u.username }}</td><td>{{ u.main_area.name }}</td><td>{{ u.gmail }}</td><td>{{ "Activo" if u.active else "Inactivo" }}</td><td>{{ u.last_login_at|datetime_ar }}</td><td><a class="btn btn-outline-primary btn-sm" href="{{ url_for('users.edit', user_id=u.id) }}">Editar</a></td></tr>{% endfor %}
+{% for u in users %}<tr><td data-label="Nombre"><strong>{{ u.full_name }}</strong></td><td data-label="Usuario">{{ u.username }}</td><td data-label="Área"><span class="area-pill">{{ u.main_area.name }}</span></td><td data-label="Gmail">{{ u.gmail }}</td><td data-label="Estado"><span class="status-badge {{ 'status-resuelto' if u.active else 'status-cerrado' }}">{{ "Activo" if u.active else "Inactivo" }}</span></td><td data-label="Último acceso">{{ u.last_login_at|datetime_ar }}</td><td data-label="Acción"><a class="btn btn-outline-primary btn-sm" href="{{ url_for('users.edit', user_id=u.id) }}">Editar</a></td></tr>{% endfor %}
 </tbody></table></div>
 {% endblock %}
