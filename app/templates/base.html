@@ -70,9 +70,9 @@
   </div>
 </footer>
 {% if current_user.is_authenticated %}
-<div class="modal fade poker-modal poker16-modal" id="pokerLeftiesModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade poker-modal poker16-modal lefties-game" id="pokerLeftiesModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content poker16-shell">
+    <div class="modal-content poker16-shell pixel-panel">
       <div class="modal-header poker16-header">
         <div>
           <span class="poker16-kicker">Easter egg interno</span>
@@ -88,6 +88,7 @@
           <div><strong id="pokerStreak">0</strong><span>RACHA</span></div>
           <div><strong id="pokerReset">-</strong><span>RESET</span></div>
         </div>
+        <div class="poker16-extra" id="pokerExtra">Manos: 0 normales + 0 extra</div>
         <div class="poker16-tabs" role="tablist">
           <button type="button" class="active" data-poker-tab="play">Mesa</button>
           <button type="button" data-poker-tab="jokers">Comodines</button>
@@ -96,10 +97,12 @@
         </div>
         <div class="poker16-message" id="pokerMessage">INSERT COIN: cero dinero real, solo puntos ficticios.</div>
         <section class="poker16-tab-panel active" data-poker-panel="play">
+          <div class="poker16-round" id="pokerRound">Vuelta de descarte 0/3</div>
           <div class="poker16-cards" id="pokerCards"></div>
           <div class="poker16-actions">
             <button class="poker16-btn primary" id="pokerStart" type="button">REPARTIR</button>
             <button class="poker16-btn" id="pokerDiscard" type="button" disabled>DESCARTAR</button>
+            <button class="poker16-btn" id="pokerKeep" type="button" disabled>MANTENER CARTAS</button>
             <button class="poker16-btn success" id="pokerScore" type="button" disabled>PUNTUAR</button>
           </div>
           <div class="poker16-result" id="pokerResult"></div>

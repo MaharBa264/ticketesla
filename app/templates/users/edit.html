@@ -117,6 +117,9 @@
     <div class="col-md-4">
       <div class="panel-subtle h-100"><strong>{{ user.game_state.streak_current }} / {{ user.game_state.streak_best }}</strong><div class="form-text">Racha actual / mejor racha</div></div>
     </div>
+    <div class="col-md-4">
+      <div class="panel-subtle h-100"><strong>{{ game_status.extra_hands_remaining if game_status else 0 }}</strong><div class="form-text">Manos extra activas</div></div>
+    </div>
     {% endif %}
   </div>
 

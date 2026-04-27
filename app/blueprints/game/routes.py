@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request, session
 from flask_login import current_user, login_required
 
 from app.services.game_service import (
+    MAX_DISCARD_ROUNDS,
     GameLimitError,
     deal_hand,
     equip_joker,
@@ -10,6 +11,7 @@ from app.services.game_service import (
     record_score,
     replace_cards,
     status_for,
+    unequip_joker,
 )
 from app.time_utils import format_datetime_ar
 
@@ -31,18 +33,22 @@ def status():
 @login_required
 def start_hand():
     try:
-        cards = deal_hand(current_user)
+        cards, deck, consume_source = deal_hand(current_user)
     except GameLimitError as exc:
         return _error(str(exc), 403)
     session["poker_lefties_hand"] = {
         "dealt": cards,
+        "deck": deck,
         "discarded": [],
         "final": cards,
+        "discard_round": 0,
+        "discard_rounds": [],
         "discard_used": False,
         "scored": False,
+        "consume_source": consume_source,
     }
     session.modified = True
-    return jsonify({"ok": True, "cards": cards, "status": status_for(current_user)})
+    return jsonify({"ok": True, "cards": cards, "hand": cards, "round": 0, "rounds_remaining": MAX_DISCARD_ROUNDS, "can_score": False, "status": status_for(current_user)})
 
 
 @game_bp.post("/discard")
@@ -51,21 +57,49 @@ def discard():
     payload = session.get("poker_lefties_hand")
     if not payload:
         return _error("Primero tenes que iniciar una mano.")
-    if payload.get("discard_used"):
-        return _error("Ya usaste el descarte de esta mano.")
-    discarded_ids = (request.get_json(silent=True) or {}).get("discarded_ids", [])
+    if payload.get("scored"):
+        return _error("Esta mano ya fue puntuada.")
+    if int(payload.get("discard_round", 0)) >= MAX_DISCARD_ROUNDS:
+        return _error("Ya completaste las 3 vueltas de descarte.")
+    data = request.get_json(silent=True) or {}
+    discarded_ids = data.get("cards", data.get("discarded_ids", []))
     if not isinstance(discarded_ids, list):
         return _error("Solicitud invalida.")
     try:
-        final_cards, discarded_cards = replace_cards(payload["dealt"], discarded_ids)
+        final_cards, discarded_cards, drawn_cards, deck = replace_cards(payload["final"], payload.get("deck", []), discarded_ids)
     except ValueError as exc:
         return _error(str(exc))
+    round_number = int(payload.get("discard_round", 0)) + 1
+    payload.setdefault("discard_rounds", []).append(
+        {
+            "round": round_number,
+            "discarded": [card["id"] for card in discarded_cards],
+            "drawn": [card["id"] for card in drawn_cards],
+            "hand_after": [card["id"] for card in final_cards],
+        }
+    )
     payload["discarded"] = discarded_cards
     payload["final"] = final_cards
-    payload["discard_used"] = True
+    payload["deck"] = deck
+    payload["discard_round"] = round_number
+    payload["discard_used"] = round_number >= MAX_DISCARD_ROUNDS
     session["poker_lefties_hand"] = payload
     session.modified = True
-    return jsonify({"ok": True, "cards": final_cards, "discarded": discarded_cards, "status": status_for(current_user)})
+    rounds_remaining = MAX_DISCARD_ROUNDS - round_number
+    return jsonify(
+        {
+            "ok": True,
+            "round": round_number,
+            "rounds_remaining": rounds_remaining,
+            "hand": final_cards,
+            "cards": final_cards,
+            "discarded": discarded_cards,
+            "drawn": drawn_cards,
+            "message": f"Vuelta {round_number}/3 completada",
+            "can_score": rounds_remaining == 0,
+            "status": status_for(current_user),
+        }
+    )
 
 
 @game_bp.post("/score")
@@ -76,12 +110,15 @@ def score():
         return _error("No hay una mano activa para puntuar.")
     if payload.get("scored"):
         return _error("Esta mano ya fue puntuada.")
+    if int(payload.get("discard_round", 0)) < MAX_DISCARD_ROUNDS:
+        return _error("Tenes que completar las 3 vueltas de descarte antes de cerrar la mano.")
     try:
-        hand, status_payload, unlocked_achievements = record_score(
+        hand, status_payload, unlocked_achievements, unlocked_jokers = record_score(
             current_user,
             payload["dealt"],
             payload.get("discarded", []),
             payload.get("final") or payload["dealt"],
+            payload.get("discard_rounds", []),
         )
     except GameLimitError as exc:
         return _error(str(exc), 403)
@@ -92,14 +129,20 @@ def score():
             "ok": True,
             "result": {
                 "name": hand.result_name,
+                "result_name": hand.result_name,
                 "base_score": hand.base_score,
-                "bonuses": hand.bonuses_json,
+                "bonuses": hand.score_breakdown_json.get("bonuses", []),
+                "multipliers": hand.score_breakdown_json.get("multipliers", []),
+                "streak_bonus": hand.streak_bonus,
                 "multiplier": hand.multiplier,
                 "score": hand.score,
+                "final_score": hand.final_score,
+                "score_breakdown": hand.score_breakdown_json,
                 "played_at": format_datetime_ar(hand.played_at),
                 "final_cards": hand.final_cards_json,
             },
             "unlocked_achievements": unlocked_achievements,
+            "unlocked_jokers": unlocked_jokers,
             "status": status_payload,
         }
     )
@@ -118,11 +161,15 @@ def history():
                     "played_at": format_datetime_ar(hand.played_at),
                     "result_name": hand.result_name,
                     "base_score": hand.base_score,
-                    "bonuses": hand.bonuses_json,
+                    "bonuses": hand.score_breakdown_json.get("bonuses", []) if hand.score_breakdown_json else hand.bonuses_json,
+                    "multipliers": hand.score_breakdown_json.get("multipliers", []) if hand.score_breakdown_json else [],
+                    "streak_bonus": hand.streak_bonus,
                     "multiplier": hand.multiplier,
                     "score": hand.score,
+                    "final_score": hand.final_score or hand.score,
                     "final_cards": hand.final_cards_json,
                     "discarded_cards": hand.discarded_cards_json,
+                    "discard_rounds": hand.discard_rounds_json or [],
                 }
                 for hand in hands
             ],
@@ -136,6 +183,17 @@ def equip():
     data = request.get_json(silent=True) or {}
     try:
         jokers = equip_joker(current_user, data.get("code"), int(data.get("slot", 1)))
+    except (TypeError, ValueError) as exc:
+        return _error(str(exc))
+    return jsonify({"ok": True, "jokers": jokers, "status": status_for(current_user)})
+
+
+@game_bp.post("/unequip-joker")
+@login_required
+def unequip():
+    data = request.get_json(silent=True) or {}
+    try:
+        jokers = unequip_joker(current_user, data.get("code"))
     except (TypeError, ValueError) as exc:
         return _error(str(exc))
     return jsonify({"ok": True, "jokers": jokers, "status": status_for(current_user)})

@@ -1,6 +1,7 @@
 from app.models.audit import AuditLog
 from app.models.game import (
     GameAchievement,
+    GameHandGrant,
     GameHand,
     GameJoker,
     GameUserAchievement,
@@ -36,6 +37,7 @@ __all__ = [
     "Area",
     "AuditLog",
     "GameHand",
+    "GameHandGrant",
     "GameJoker",
     "GameUserJoker",
     "GameAchievement",

@@ -146,9 +146,11 @@ def status(ticket_id):
     new_status = request.form.get("status")
     if not is_status_action_allowed(ticket, new_status, current_user):
         abort(403)
-    change_status(ticket, new_status, current_user, request.form.get("comment"))
+    extra_hand_granted = change_status(ticket, new_status, current_user, request.form.get("comment"))
     db.session.commit()
     flash("Estado actualizado.", "success")
+    if extra_hand_granted:
+        flash("Ganaste +1 mano extra en Poker de los Izquierdos.", "success")
     return redirect(url_for("tickets.detail", ticket_id=ticket.id))
 
 

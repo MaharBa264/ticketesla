@@ -4,7 +4,7 @@ from flask_login import current_user, login_required
 from app.extensions import db
 from app.models import Area, GameUserSettings, Permission, PersistentLoginToken, Role, User
 from app.services.audit_service import log_action
-from app.services.game_service import reset_current_window
+from app.services.game_service import reset_current_window, status_for
 from app.services.permission_service import require_permission
 from app.time_utils import now_utc
 
@@ -23,7 +23,8 @@ def _ids_from_form(field_name):
 
 def _render_form(user, areas, roles, permissions):
     game_settings = GameUserSettings.query.get(user.id) if user else None
-    return render_template("users/edit.html", user=user, areas=areas, roles=roles, permissions=permissions, game_settings=game_settings)
+    game_status = status_for(user) if user else None
+    return render_template("users/edit.html", user=user, areas=areas, roles=roles, permissions=permissions, game_settings=game_settings, game_status=game_status)
 
 
 @users_bp.get("/")

@@ -27,6 +27,7 @@ class GameUserState(db.Model):
     streak_current = db.Column(db.Integer, default=0, nullable=False)
     streak_best = db.Column(db.Integer, default=0, nullable=False)
     best_hand_score = db.Column(db.Integer, default=0, nullable=False)
+    best_result_name = db.Column(db.String(80))
     last_streak_date = db.Column(db.Date)
 
     user = db.relationship("User", backref=db.backref("game_state", uselist=False))
@@ -38,12 +39,19 @@ class GameHand(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     dealt_cards_json = db.Column(db.JSON, nullable=False)
     discarded_cards_json = db.Column(db.JSON, nullable=False)
+    discard_rounds_json = db.Column(db.JSON, default=list, nullable=False)
     final_cards_json = db.Column(db.JSON, nullable=False)
     result_name = db.Column(db.String(80), nullable=False)
     base_score = db.Column(db.Integer, default=0, nullable=False)
     bonuses_json = db.Column(db.JSON, default=list, nullable=False)
+    bonuses_applied_json = db.Column(db.JSON, default=list, nullable=False)
+    jokers_used_json = db.Column(db.JSON, default=list, nullable=False)
+    score_breakdown_json = db.Column(db.JSON, default=dict, nullable=False)
+    bonus_score = db.Column(db.Integer, default=0, nullable=False)
+    streak_bonus = db.Column(db.Integer, default=0, nullable=False)
     multiplier = db.Column(db.Float, default=1.0, nullable=False)
     score = db.Column(db.Integer, nullable=False)
+    final_score = db.Column(db.Integer, default=0, nullable=False)
     played_at = db.Column(db.DateTime(timezone=True), default=now_utc, nullable=False, index=True)
 
     user = db.relationship("User", backref="game_hands")
@@ -94,3 +102,20 @@ class GameUserAchievement(db.Model):
     user = db.relationship("User", backref="game_user_achievements")
     achievement = db.relationship("GameAchievement")
     __table_args__ = (db.UniqueConstraint("user_id", "achievement_id", name="uq_game_user_achievement"),)
+
+
+class GameHandGrant(db.Model):
+    __tablename__ = "game_hand_grants"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    ticket_id = db.Column(db.Integer, db.ForeignKey("tickets.id"), nullable=False, index=True)
+    action = db.Column(db.String(80), nullable=False)
+    hands_granted = db.Column(db.Integer, default=1, nullable=False)
+    hands_used = db.Column(db.Integer, default=0, nullable=False)
+    granted_at = db.Column(db.DateTime(timezone=True), default=now_utc, nullable=False)
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=False, index=True)
+    window_start = db.Column(db.DateTime(timezone=True), nullable=False)
+
+    user = db.relationship("User", backref="game_hand_grants")
+    ticket = db.relationship("Ticket")
+    __table_args__ = (db.UniqueConstraint("user_id", "ticket_id", "action", name="uq_game_hand_grant_action"),)

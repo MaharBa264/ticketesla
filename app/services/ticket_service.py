@@ -208,8 +208,17 @@ def change_status(ticket, new_status, user, comment=None):
         ticket.closed_at = None
     db.session.add(TicketStatusHistory(ticket=ticket, old_status=old_status, new_status=new_status, user_id=user.id, comment=comment))
     log_action("ticket_status_changed", "Ticket", ticket.id, old_value=old_status, new_value=new_status, user=user)
+    extra_hand_granted = False
+    if old_status != new_status and new_status in ("Resuelto", "Cerrado"):
+        try:
+            from app.services.game_service import grant_extra_hand_for_ticket_action
+
+            extra_hand_granted = grant_extra_hand_for_ticket_action(user, ticket, new_status)
+        except Exception:
+            current_app.logger.exception("No se pudo otorgar mano extra por ticket %s", ticket.number)
     if new_status == "Resuelto":
         notification_service.notify_ticket_resolved(ticket)
+    return extra_hand_granted
 
 
 def transfer_ticket(ticket, to_area_id, reason, user):
