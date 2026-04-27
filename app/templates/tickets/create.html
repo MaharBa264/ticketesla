@@ -40,7 +40,7 @@
           <option value="{{ t.id }}" data-body="{{ t.body|e }}" data-area="{{ t.area_id }}" data-type="{{ t.suggested_type }}" data-subtype="{{ t.suggested_subtype }}" data-schema='{{ (t.schema_json or {})|tojson|forceescape }}'>{{ t.name }}</option>
           {% endfor %}
         </select>
-        <div class="form-text">Al elegir una plantilla, Ticketesla arma un formulario guiado y completa tipo, subtipo y área responsable cuando corresponde.</div>
+        <div class="form-text">Al elegir una plantilla compatible, Ticketesla arma un formulario guiado y completa subtipo y área responsable cuando corresponde. No cambia la opción elegida en el paso 1.</div>
       </div>
     </div>
 

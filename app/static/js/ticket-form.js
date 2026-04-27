@@ -5,6 +5,8 @@ const structuredPanel = document.querySelector("#structured-panel");
 const structuredFields = document.querySelector("#structured-fields");
 const responsibleAreaWrap = document.querySelector("#responsible-area-wrap");
 const responsibleAreaSelect = document.querySelector("#responsible_area_id");
+const responsibleAreaLabel = document.querySelector("#responsible-area-label");
+const responsibleAreaHelp = document.querySelector("#responsible-area-help");
 const contextTitle = document.querySelector("#ticket-context-title");
 const dueAtWrap = document.querySelector("#due-at-wrap");
 const dueAtInput = document.querySelector("#due_at");
@@ -22,15 +24,6 @@ function setSelectValue(selector, value) {
 function selectedTicketType() {
   const radio = document.querySelector('input[name="ticket_type"]:checked');
   return radio ? radio.value : "";
-}
-
-function setTicketType(value) {
-  if (!value) return;
-  const radio = document.querySelector(`input[name="ticket_type"][value="${CSS.escape(value)}"]`);
-  if (radio) {
-    radio.checked = true;
-    updateTicketContext();
-  }
 }
 
 function escapeHtml(value) {
@@ -59,19 +52,44 @@ function renderStructuredFields(schema) {
   structuredPanel.classList.toggle("d-none", fields.length === 0);
 }
 
+function updateTemplateChoices() {
+  if (!templateSelect) return;
+  const type = selectedTicketType();
+  let selectedStillValid = true;
+  Array.from(templateSelect.options).forEach(option => {
+    if (!option.value) {
+      option.hidden = false;
+      option.disabled = false;
+      return;
+    }
+    const isCompatible = !type || option.dataset.type === type;
+    option.hidden = !isCompatible;
+    option.disabled = !isCompatible;
+    if (option.selected && !isCompatible) selectedStillValid = false;
+  });
+  if (!selectedStillValid) {
+    templateSelect.value = "";
+    renderStructuredFields({ fields: [] });
+    if (description) description.value = "";
+  }
+}
+
 function updateTicketContext() {
   const type = selectedTicketType();
   const isChange = type === "Registro de cambio";
   const isRequest = type === "Solicitud de intervención";
 
   if (contextTitle) contextTitle.textContent = isRequest ? "Área responsable y plantilla" : "Plantilla del registro";
+  if (responsibleAreaLabel) responsibleAreaLabel.textContent = isRequest ? "Área responsable" : "Área del registro";
+  if (responsibleAreaHelp) responsibleAreaHelp.textContent = isRequest ? "Área a la que se envía la solicitud." : "Para registros de cambio se usa automáticamente tu área.";
   if (responsibleAreaWrap) responsibleAreaWrap.classList.toggle("d-none", !isRequest);
   if (responsibleAreaSelect) {
     responsibleAreaSelect.required = isRequest;
     if (isChange && userAreaId) responsibleAreaSelect.value = userAreaId;
   }
-  if (dueAtWrap) dueAtWrap.classList.toggle("d-none", !isChange);
-  if (dueAtInput && !isChange) dueAtInput.value = "";
+  if (dueAtWrap) dueAtWrap.classList.toggle("d-none", !isRequest);
+  if (dueAtInput && !isRequest) dueAtInput.value = "";
+  updateTemplateChoices();
 }
 
 document.querySelectorAll('input[name="ticket_type"]').forEach(radio => {
@@ -86,8 +104,14 @@ if (templateSelect) {
       updateTicketContext();
       return;
     }
-    setTicketType(option.dataset.type);
-    if (selectedTicketType() === "Solicitud de intervención") setSelectValue("#responsible_area_id", option.dataset.area);
+    const currentType = selectedTicketType();
+    if (option.dataset.type && currentType && option.dataset.type !== currentType) {
+      templateSelect.value = "";
+      renderStructuredFields({ fields: [] });
+      updateTicketContext();
+      return;
+    }
+    if (currentType === "Solicitud de intervención") setSelectValue("#responsible_area_id", option.dataset.area);
     else if (userAreaId) setSelectValue("#responsible_area_id", userAreaId);
     setSelectValue("#subtype", option.dataset.subtype);
     const schema = safeJson(option.dataset.schema, { fields: [] });

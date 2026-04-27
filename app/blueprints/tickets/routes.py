@@ -5,7 +5,7 @@ from app.extensions import db
 from app.models import Area, Ticket, TicketAttachment, TicketTemplate, TICKET_STATUSES, TICKET_SUBTYPES, TICKET_TYPES, PRIORITIES
 from app.services.permission_service import require_permission, visible_area_ids
 from app.services.audit_service import log_action
-from app.services.ticket_service import add_comment, change_status, create_ticket, save_attachments, transfer_ticket
+from app.services.ticket_service import add_comment, allowed_status_actions, change_status, create_ticket, is_status_action_allowed, save_attachments, transfer_ticket
 
 tickets_bp = Blueprint("tickets", __name__, url_prefix="/tickets")
 
@@ -69,7 +69,7 @@ def search():
 def detail(ticket_id):
     ticket = get_visible_ticket(ticket_id)
     areas = Area.query.filter_by(active=True).order_by(Area.name).all()
-    return render_template("tickets/detail.html", ticket=ticket, areas=areas, statuses=TICKET_STATUSES)
+    return render_template("tickets/detail.html", ticket=ticket, areas=areas, statuses=TICKET_STATUSES, status_actions=allowed_status_actions(ticket, current_user))
 
 
 @tickets_bp.route("/<int:ticket_id>/edit", methods=["GET", "POST"])
@@ -113,16 +113,8 @@ def comment(ticket_id):
 @login_required
 def status(ticket_id):
     ticket = get_visible_ticket(ticket_id)
-    action_map = {
-        "Reconocido": "can_acknowledge_ticket",
-        "En curso": "can_resolve_ticket",
-        "Pendiente de tercero": "can_resolve_ticket",
-        "Resuelto": "can_resolve_ticket",
-        "Cerrado": "can_resolve_ticket",
-        "Reabierto": "can_resolve_ticket",
-    }
     new_status = request.form.get("status")
-    if new_status not in action_map or not current_user.has_permission(action_map[new_status]):
+    if not is_status_action_allowed(ticket, new_status, current_user):
         abort(403)
     change_status(ticket, new_status, current_user, request.form.get("comment"))
     db.session.commit()

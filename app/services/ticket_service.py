@@ -103,7 +103,7 @@ def resolve_responsible_area_id(ticket_type, form, user):
 
 def create_ticket(form, user):
     ticket_type = form.get("ticket_type")
-    status = "Cerrado" if ticket_type == "Registro de cambio" else "Nuevo"
+    status = "Resuelto" if ticket_type == "Registro de cambio" else "Nuevo"
     template = get_selected_template(form)
     structured_data = collect_structured_data(template, form)
     description = build_description(template, structured_data, form.get("description"))
@@ -112,8 +112,8 @@ def create_ticket(form, user):
         number=next_ticket_number(), title=title, description=description,
         ticket_type=ticket_type, subtype=form.get("subtype"), creator_area_id=user.main_area_id,
         responsible_area_id=resolve_responsible_area_id(ticket_type, form, user), creator_user_id=user.id,
-        status=status, priority=None, due_at=parse_local_datetime(form.get("due_at")) if ticket_type == "Registro de cambio" else None,
-        closed_at=now_utc() if status == "Cerrado" else None, tags=None,
+        status=status, priority=None, due_at=parse_local_datetime(form.get("due_at")) if ticket_type == "Solicitud de intervención" else None,
+        closed_at=None, tags=None,
         location=form.get("location") or None, station=None,
         affected_equipment=form.get("affected_equipment") or None,
         template_id=template.id if template else None, structured_data=structured_data,
@@ -125,6 +125,37 @@ def create_ticket(form, user):
     notification_service.notify_ticket_created(ticket)
     return ticket
 
+
+
+def allowed_status_actions(ticket, user):
+    """Devuelve los próximos estados válidos para el usuario y el estado actual del ticket."""
+    actions = []
+
+    if ticket.ticket_type == "Registro de cambio":
+        if ticket.status != "Cerrado" and user.has_permission("can_resolve_ticket"):
+            actions.append(("Cerrado", "Cerrar"))
+        if ticket.status == "Cerrado" and user.has_permission("can_reopen_ticket"):
+            actions.append(("Reabierto", "Reabrir"))
+        return actions
+
+    status = ticket.status
+    if status in ("Nuevo", "Derivado", "Reabierto") and user.has_permission("can_acknowledge_ticket"):
+        actions.append(("Reconocido", "Reconocer"))
+    if status in ("Reconocido", "Derivado", "Pendiente de tercero", "Reabierto") and user.has_permission("can_resolve_ticket"):
+        actions.append(("En curso", "Marcar en curso"))
+    if status in ("Reconocido", "En curso") and user.has_permission("can_resolve_ticket"):
+        actions.append(("Pendiente de tercero", "Pendiente de tercero"))
+    if status in ("Reconocido", "En curso", "Pendiente de tercero", "Derivado", "Reabierto") and user.has_permission("can_resolve_ticket"):
+        actions.append(("Resuelto", "Resolver"))
+    if status == "Resuelto" and user.has_permission("can_resolve_ticket"):
+        actions.append(("Cerrado", "Cerrar"))
+    if status == "Cerrado" and user.has_permission("can_reopen_ticket"):
+        actions.append(("Reabierto", "Reabrir"))
+    return actions
+
+
+def is_status_action_allowed(ticket, new_status, user):
+    return any(status == new_status for status, _label in allowed_status_actions(ticket, user))
 
 def change_status(ticket, new_status, user, comment=None):
     old_status = ticket.status

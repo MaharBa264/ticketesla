@@ -37,19 +37,30 @@
       <dl class="meta"><dt>Tipo</dt><dd>{{ ticket.ticket_type }}</dd><dt>Subtipo</dt><dd>{{ ticket.subtype }}</dd><dt>Área creadora</dt><dd>{{ ticket.creator_area.name }}</dd><dt>Área responsable</dt><dd>{{ ticket.responsible_area.name }}</dd><dt>Creador</dt><dd>{{ ticket.creator.full_name }}</dd><dt>Creado</dt><dd>{{ ticket.created_at|datetime_ar }}</dd><dt>Límite</dt><dd>{{ ticket.due_at|datetime_ar }}</dd><dt>Cierre</dt><dd>{{ ticket.closed_at|datetime_ar }}</dd></dl>
     </section>
     <section class="content-panel"><h2>Acciones</h2>
+      {% set share_text = 'Ticketesla ' ~ ticket.number ~ ' - ' ~ ticket.title ~ ' (' ~ ticket.status ~ ') ' ~ request.url %}
+      <a class="btn btn-outline-success w-100 mb-2" target="_blank" rel="noopener" href="https://wa.me/?text={{ share_text|urlencode }}">Compartir por WhatsApp</a>
       {% if has_perm('can_edit_ticket') %}<a class="btn btn-outline-secondary w-100 mb-2" href="{{ url_for('tickets.edit', ticket_id=ticket.id) }}">Editar campos básicos</a>{% endif %}
+      {% if status_actions %}
       <form method="post" action="{{ url_for('tickets.status', ticket_id=ticket.id) }}" class="d-grid gap-2">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        {% if has_perm('can_acknowledge_ticket') %}<button class="btn btn-outline-primary" name="status" value="Reconocido">Reconocer</button>{% endif %}
-        {% if has_perm('can_resolve_ticket') %}
-        <button class="btn btn-outline-primary" name="status" value="En curso">Marcar en curso</button>
-        <button class="btn btn-outline-secondary" name="status" value="Pendiente de tercero">Pendiente de tercero</button>
-        <button class="btn btn-success" name="status" value="Resuelto">Resolver</button>
-        <button class="btn btn-dark" name="status" value="Cerrado">Cerrar</button>
-        <button class="btn btn-outline-danger" name="status" value="Reabierto">Reabrir</button>
-        {% endif %}
+        {% for status_value, label in status_actions %}
+          {% if status_value == 'Resuelto' %}
+            <button class="btn btn-success" name="status" value="{{ status_value }}">{{ label }}</button>
+          {% elif status_value == 'Cerrado' %}
+            <button class="btn btn-dark" name="status" value="{{ status_value }}">{{ label }}</button>
+          {% elif status_value == 'Reabierto' %}
+            <button class="btn btn-outline-danger" name="status" value="{{ status_value }}">{{ label }}</button>
+          {% elif status_value == 'Pendiente de tercero' %}
+            <button class="btn btn-outline-secondary" name="status" value="{{ status_value }}">{{ label }}</button>
+          {% else %}
+            <button class="btn btn-outline-primary" name="status" value="{{ status_value }}">{{ label }}</button>
+          {% endif %}
+        {% endfor %}
       </form>
-      {% if has_perm('can_transfer_ticket') %}
+      {% else %}
+        <p class="text-muted mb-0">No hay acciones disponibles para tu usuario en este estado.</p>
+      {% endif %}
+      {% if has_perm('can_transfer_ticket') and ticket.ticket_type == 'Solicitud de intervención' and ticket.status not in ['Cerrado', 'Resuelto'] %}
       <div class="soft-divider"></div>
       <form method="post" action="{{ url_for('tickets.transfer', ticket_id=ticket.id) }}" class="mt-3">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

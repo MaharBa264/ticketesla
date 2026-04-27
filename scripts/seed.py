@@ -15,6 +15,7 @@ PERMISSIONS = [
     "can_manage_catalogs",
     "can_view_audit_log",
     "can_edit_ticket",
+    "can_reopen_ticket",
 ]
 
 ROLE_PERMISSIONS = {
