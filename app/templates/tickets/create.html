@@ -2,26 +2,78 @@
 {% block content %}
 <div class="narrow">
   <h1>Nuevo ticket</h1>
-  <form method="post" enctype="multipart/form-data" class="form-panel">
+  <p class="text-muted">Elegí una plantilla si querés cargar una guía de texto. Ticketesla va a acomodar área, tipo y subtipo automáticamente.</p>
+
+  <form method="post" enctype="multipart/form-data" class="form-panel" id="ticketForm">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
     <h2>1. ¿Qué querés hacer?</h2>
-    <div class="row g-2 mb-4">{% for type in types %}<div class="col-md-6"><input type="radio" class="btn-check" name="ticket_type" id="type{{ loop.index }}" value="{{ type }}" required><label class="btn btn-outline-primary w-100 choice" for="type{{ loop.index }}">{{ type }}</label></div>{% endfor %}</div>
+    <div class="row g-2 mb-4">
+      {% for type in types %}
+      <div class="col-md-6">
+        <input type="radio" class="btn-check" name="ticket_type" id="type{{ loop.index }}" value="{{ type }}" required>
+        <label class="btn btn-outline-primary w-100 choice" for="type{{ loop.index }}">
+          <strong>{{ type }}</strong>
+          <small class="d-block mt-1 text-muted">
+            {% if type == 'Registro de cambio' %}Dejar constancia de algo ya realizado.{% else %}Pedir una corrección, revisión o asistencia.{% endif %}
+          </small>
+        </label>
+      </div>
+      {% endfor %}
+    </div>
+
     <h2>2. Datos de destino</h2>
     <div class="row g-3 mb-4">
-      <div class="col-md-6"><label class="form-label">Área responsable</label><select class="form-select" name="responsible_area_id" required>{% for area in areas %}<option value="{{ area.id }}">{{ area.name }}</option>{% endfor %}</select></div>
-      <div class="col-md-6"><label class="form-label">Subtipo</label><select class="form-select" name="subtype" required>{% for subtype in subtypes %}<option>{{ subtype }}</option>{% endfor %}</select></div>
-      <div class="col-12"><label class="form-label">Plantilla opcional</label><select class="form-select" name="template_id" id="template"><option value="">Sin plantilla</option>{% for t in templates %}<option value="{{ t.id }}" data-body="{{ t.body|e }}">{{ t.name }}</option>{% endfor %}</select></div>
+      <div class="col-md-6">
+        <label class="form-label">Área responsable</label>
+        <select class="form-select" name="responsible_area_id" id="responsibleArea" required>
+          {% for area in areas %}<option value="{{ area.id }}">{{ area.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Subtipo</label>
+        <select class="form-select" name="subtype" id="subtype" required>
+          {% for subtype in subtypes %}<option>{{ subtype }}</option>{% endfor %}
+        </select>
+      </div>
+
+      <div class="col-12">
+        <label class="form-label">Plantilla opcional</label>
+        <div class="input-group">
+          <select class="form-select" name="template_id" id="template">
+            <option value="">Sin plantilla</option>
+            {% for t in templates %}
+            <option value="{{ t.id }}" data-area-id="{{ t.area_id }}" data-type="{{ t.suggested_type }}" data-subtype="{{ t.suggested_subtype }}" data-body="{{ t.body|e }}">{{ t.area.name }} · {{ t.name }}</option>
+            {% endfor %}
+          </select>
+          <button class="btn btn-outline-primary" type="button" id="applyTemplate" disabled>Aplicar texto</button>
+        </div>
+        <div class="form-text" id="templateHelp">Se mostrarán primero las plantillas que coincidan con el tipo y área elegidos.</div>
+      </div>
     </div>
+
     <h2>3. Descripción</h2>
     <div class="row g-3">
-      <div class="col-12"><label class="form-label">Título</label><input class="form-control" name="title" required></div>
-      <div class="col-12"><label class="form-label">Descripción</label><textarea class="form-control" name="description" id="description" rows="7" required></textarea></div>
-      <div class="col-md-6"><label class="form-label">Fecha límite</label><input class="form-control" type="datetime-local" name="due_at"></div>
-      <div class="col-md-6"><label class="form-label">Prioridad</label><select class="form-select" name="priority"><option value="">Sin prioridad</option>{% for p in priorities %}<option>{{ p }}</option>{% endfor %}</select></div>
+      <div class="col-12">
+        <label class="form-label">Título</label>
+        <input class="form-control" name="title" id="title" placeholder="Ej: Cambio de IP en RTU ET San Luis" required>
+      </div>
+      <div class="col-12">
+        <label class="form-label">Descripción</label>
+        <textarea class="form-control" name="description" id="description" rows="8" required></textarea>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Fecha límite</label>
+        <input class="form-control" type="datetime-local" name="due_at">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Prioridad</label>
+        <select class="form-select" name="priority"><option value="">Sin prioridad</option>{% for p in priorities %}<option>{{ p }}</option>{% endfor %}</select>
+      </div>
       <div class="col-md-4"><label class="form-label">Ubicación</label><input class="form-control" name="location"></div>
       <div class="col-md-4"><label class="form-label">Estación</label><input class="form-control" name="station"></div>
       <div class="col-md-4"><label class="form-label">Equipo afectado</label><input class="form-control" name="affected_equipment"></div>
-      <div class="col-md-6"><label class="form-label">Tags</label><input class="form-control" name="tags"></div>
+      <div class="col-md-6"><label class="form-label">Tags</label><input class="form-control" name="tags" placeholder="Ej: RTU, DNP3, IP"></div>
       <div class="col-md-6"><label class="form-label">Adjuntos</label><input class="form-control" type="file" name="attachments" multiple></div>
     </div>
     <button class="btn btn-primary btn-lg mt-4">Crear ticket</button>
