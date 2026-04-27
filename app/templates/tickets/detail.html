@@ -1,7 +1,7 @@
 ﻿{% extends "base.html" %}
-{% block title %}{{ ticket.number }} Â· Ticketesla{% endblock %}
+{% block title %}{{ ticket.number }} · Ticketesla{% endblock %}
 {% block content %}
-{% set status_class = 'status-' ~ ticket.status|lower|replace(' ', '-')|replace('Ã¡','a')|replace('Ã©','e')|replace('Ã­','i')|replace('Ã³','o')|replace('Ãº','u') %}
+{% set status_class = 'status-' ~ ticket.status|lower|replace(' ', '-')|replace('á','a')|replace('é','e')|replace('í','i')|replace('ó','o')|replace('ú','u') %}
 <div class="ticket-header">
   <div>
     <span class="page-kicker">{{ ticket.ticket_type }}</span>
@@ -17,29 +17,29 @@
       <dl class="structured-readonly">
         {% for item in ticket.structured_data.fields %}
         <dt>{{ item.label }}</dt>
-        <dd>{% if item.type == "checkbox" %}{{ "SÃ­" if item.value else "No" }}{% else %}{{ item.value or "-" }}{% endif %}</dd>
+        <dd>{% if item.type == "checkbox" %}{{ "Sí" if item.value else "No" }}{% else %}{{ item.value or "-" }}{% endif %}</dd>
         {% endfor %}
       </dl>
     </section>
     {% endif %}
-    <section class="content-panel"><h2>DescripciÃ³n</h2><p class="preline mb-0">{{ ticket.description }}</p></section>
+    <section class="content-panel"><h2>Descripción</h2><p class="preline mb-0">{{ ticket.description }}</p></section>
     <section class="content-panel"><h2>Comentarios</h2>
-      {% for c in ticket.comments|sort(attribute='created_at') %}<div class="comment"><strong>{{ c.user.full_name }}</strong><span>{{ c.created_at|datetime_ar }}</span><p class="mb-0 mt-2">{{ c.comment }}</p></div>{% else %}<p class="text-muted">TodavÃ­a no hay comentarios.</p>{% endfor %}
+      {% for c in ticket.comments|sort(attribute='created_at') %}<div class="comment"><strong>{{ c.user.full_name }}</strong><span>{{ c.created_at|datetime_ar }}</span><p class="mb-0 mt-2">{{ c.comment }}</p></div>{% else %}<p class="text-muted">Todavía no hay comentarios.</p>{% endfor %}
       <form method="post" action="{{ url_for('tickets.comment', ticket_id=ticket.id) }}" class="mt-3"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><textarea class="form-control" name="comment" rows="3" required placeholder="Agregar comentario o novedad"></textarea><button class="btn btn-primary mt-2">Agregar comentario</button></form>
     </section>
     <section class="content-panel"><h2>Historial</h2>
-      {% for h in ticket.status_history|sort(attribute='created_at') %}<p class="timeline-item"><strong>{{ h.created_at|datetime_ar }}</strong> Â· {{ h.user.full_name }} Â· {{ h.old_status or "Inicio" }} â†’ {{ h.new_status }}{% if h.comment %}: {{ h.comment }}{% endif %}</p>{% endfor %}
-      {% for tr in ticket.transfers|sort(attribute='created_at') %}<p class="timeline-item"><strong>{{ tr.created_at|datetime_ar }}</strong> Â· Derivado de {{ tr.from_area.name }} a {{ tr.to_area.name }}: {{ tr.reason }}</p>{% endfor %}
+      {% for h in ticket.status_history|sort(attribute='created_at') %}<p class="timeline-item"><strong>{{ h.created_at|datetime_ar }}</strong> · {{ h.user.full_name }} · {{ h.old_status or "Inicio" }} → {{ h.new_status }}{% if h.comment %}: {{ h.comment }}{% endif %}</p>{% endfor %}
+      {% for tr in ticket.transfers|sort(attribute='created_at') %}<p class="timeline-item"><strong>{{ tr.created_at|datetime_ar }}</strong> · Derivado de {{ tr.from_area.name }} a {{ tr.to_area.name }}: {{ tr.reason }}</p>{% endfor %}
     </section>
   </div>
   <div class="col-lg-4">
     <section class="content-panel"><h2>Datos</h2>
-      <dl class="meta"><dt>Tipo</dt><dd>{{ ticket.ticket_type }}</dd><dt>Subtipo</dt><dd>{{ ticket.subtype }}</dd><dt>Ãrea creadora</dt><dd>{{ ticket.creator_area.name }}</dd><dt>Ãrea responsable</dt><dd>{{ ticket.responsible_area.name }}</dd><dt>Creador</dt><dd>{{ ticket.creator.full_name }}</dd><dt>Creado</dt><dd>{{ ticket.created_at|datetime_ar }}</dd><dt>LÃ­mite</dt><dd>{{ ticket.due_at|datetime_ar }}</dd><dt>Cierre</dt><dd>{{ ticket.closed_at|datetime_ar }}</dd></dl>
+      <dl class="meta"><dt>Tipo</dt><dd>{{ ticket.ticket_type }}</dd><dt>Subtipo</dt><dd>{{ ticket.subtype }}</dd><dt>Área creadora</dt><dd>{{ ticket.creator_area.name }}</dd><dt>Área responsable</dt><dd>{{ ticket.responsible_area.name }}</dd><dt>Creador</dt><dd>{{ ticket.creator.full_name }}</dd><dt>Creado</dt><dd>{{ ticket.created_at|datetime_ar }}</dd><dt>Límite</dt><dd>{{ ticket.due_at|datetime_ar }}</dd><dt>Cierre</dt><dd>{{ ticket.closed_at|datetime_ar }}</dd></dl>
     </section>
     <section class="content-panel"><h2>Acciones</h2>
       {% set share_text = 'Ticketesla ' ~ ticket.number ~ ' - ' ~ ticket.title ~ ' (' ~ ticket.status ~ ') ' ~ request.url %}
       <a class="btn btn-outline-success w-100 mb-2" target="_blank" rel="noopener" href="https://wa.me/?text={{ share_text|urlencode }}">Compartir por WhatsApp</a>
-      {% if can_edit_ticket %}<a class="btn btn-outline-secondary w-100 mb-2" href="{{ url_for('tickets.edit', ticket_id=ticket.id) }}">Editar campos bÃ¡sicos</a>{% endif %}
+      {% if can_edit_ticket %}<a class="btn btn-outline-secondary w-100 mb-2" href="{{ url_for('tickets.edit', ticket_id=ticket.id) }}">Editar campos básicos</a>{% endif %}
       {% if status_actions %}
       <form method="post" action="{{ url_for('tickets.status', ticket_id=ticket.id) }}" class="d-grid gap-2">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -60,12 +60,12 @@
       {% else %}
         <p class="text-muted mb-0">No hay acciones disponibles para tu usuario en este estado.</p>
       {% endif %}
-      {% if can_transfer_ticket and ticket.ticket_type == 'Solicitud de intervenciÃ³n' and ticket.status not in ['Cerrado', 'Resuelto'] %}
+      {% if can_transfer_ticket and ticket.ticket_type == 'Solicitud de intervención' and ticket.status not in ['Cerrado', 'Resuelto'] %}
       <div class="soft-divider"></div>
       <form method="post" action="{{ url_for('tickets.transfer', ticket_id=ticket.id) }}" class="mt-3">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <label class="form-label">Enviar a otra Ã¡rea</label><select class="form-select" name="to_area_id">{% for area in areas %}<option value="{{ area.id }}">{{ area.name }}</option>{% endfor %}</select>
-        <textarea class="form-control mt-2" name="reason" rows="3" placeholder="ExplicaciÃ³n obligatoria" required></textarea>
+        <label class="form-label">Enviar a otra área</label><select class="form-select" name="to_area_id">{% for area in areas %}<option value="{{ area.id }}">{{ area.name }}</option>{% endfor %}</select>
+        <textarea class="form-control mt-2" name="reason" rows="3" placeholder="Explicación obligatoria" required></textarea>
         <button class="btn btn-warning mt-2 w-100">Derivar</button>
       </form>
       {% endif %}
