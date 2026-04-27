@@ -16,6 +16,46 @@ from app.time_utils import LOCAL_TZ, now_utc
 ALLOWED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".txt", ".csv", ".xlsx", ".docx", ".zip"}
 
 
+def candidate_uploads(files):
+    return [file for file in files if isinstance(file, FileStorage) and file.filename]
+
+
+def form_has_meaningful_free_content(form):
+    fields = [form.get("description"), form.get("location"), form.get("affected_equipment")]
+    return any((value or "").strip() for value in fields)
+
+
+def structured_form_has_any_answer(template, form):
+    if not template or not template.schema_json:
+        return False
+    for field in template.schema_json.get("fields") or []:
+        key = field.get("key")
+        if not key:
+            continue
+        name = f"structured_{key}"
+        if field.get("type") == "checkbox":
+            if form.get(name):
+                return True
+        elif (form.get(name) or "").strip():
+            return True
+    return False
+
+
+def validate_ticket_minimum_content(form, files):
+    """Evita tickets vacíos cuando el usuario no usa plantilla ni carga datos reales."""
+    template = get_selected_template(form)
+    has_template = template is not None
+    has_free_content = form_has_meaningful_free_content(form)
+    has_structured_answer = structured_form_has_any_answer(template, form)
+    has_attachments = bool(candidate_uploads(files))
+
+    if not (has_template or has_free_content or has_structured_answer or has_attachments):
+        raise ValueError(
+            "Para crear un ticket sin plantilla, completá al menos Observaciones, "
+            "Ubicación, Equipo afectado o adjuntá un archivo."
+        )
+
+
 def next_ticket_number():
     last = Ticket.query.order_by(Ticket.id.desc()).first()
     next_id = (last.id + 1) if last else 1
@@ -211,7 +251,7 @@ def storage_root():
 
 
 def save_attachments(ticket, files, user):
-    valid_files = [file for file in files if isinstance(file, FileStorage) and file.filename]
+    valid_files = candidate_uploads(files)
     if not valid_files:
         return []
     saved = []

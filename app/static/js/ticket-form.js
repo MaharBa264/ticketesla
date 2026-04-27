@@ -122,3 +122,33 @@ if (templateSelect) {
 }
 
 updateTicketContext();
+
+function hasAnyStructuredAnswer() {
+  if (!structuredFields) return false;
+  return Array.from(structuredFields.querySelectorAll("input, textarea, select")).some(el => {
+    if (el.type === "checkbox") return el.checked;
+    return String(el.value || "").trim() !== "";
+  });
+}
+
+function hasMinimumTicketContent() {
+  const hasTemplate = templateSelect && templateSelect.value;
+  const hasDescription = description && description.value.trim();
+  const location = document.querySelector('input[name="location"]');
+  const affectedEquipment = document.querySelector('input[name="affected_equipment"]');
+  const attachments = document.querySelector('input[name="attachments"]');
+  const hasLocation = location && location.value.trim();
+  const hasAffectedEquipment = affectedEquipment && affectedEquipment.value.trim();
+  const hasAttachments = attachments && attachments.files && attachments.files.length > 0;
+  return Boolean(hasTemplate || hasDescription || hasLocation || hasAffectedEquipment || hasAttachments || hasAnyStructuredAnswer());
+}
+
+if (ticketForm) {
+  ticketForm.addEventListener("submit", event => {
+    if (!hasMinimumTicketContent()) {
+      event.preventDefault();
+      alert("Para crear un ticket sin plantilla, completá al menos Observaciones, Ubicación, Equipo afectado o adjuntá un archivo.");
+      if (description) description.focus();
+    }
+  });
+}

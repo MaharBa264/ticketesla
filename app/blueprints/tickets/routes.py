@@ -5,7 +5,7 @@ from app.extensions import db
 from app.models import Area, Ticket, TicketAttachment, TicketTemplate, TICKET_STATUSES, TICKET_SUBTYPES, TICKET_TYPES, PRIORITIES
 from app.services.permission_service import require_permission, visible_area_ids
 from app.services.audit_service import log_action
-from app.services.ticket_service import add_comment, allowed_status_actions, change_status, create_ticket, is_status_action_allowed, save_attachments, transfer_ticket
+from app.services.ticket_service import add_comment, allowed_status_actions, change_status, create_ticket, is_status_action_allowed, save_attachments, transfer_ticket, validate_ticket_minimum_content
 
 tickets_bp = Blueprint("tickets", __name__, url_prefix="/tickets")
 
@@ -47,8 +47,10 @@ def create():
     templates = TicketTemplate.query.filter_by(active=True).order_by(TicketTemplate.name).all()
     if request.method == "POST":
         try:
+            uploaded_files = request.files.getlist("attachments")
+            validate_ticket_minimum_content(request.form, uploaded_files)
             ticket = create_ticket(request.form, current_user)
-            save_attachments(ticket, request.files.getlist("attachments"), current_user)
+            save_attachments(ticket, uploaded_files, current_user)
             db.session.commit()
             flash(f"Ticket {ticket.number} creado.", "success")
             return redirect(url_for("tickets.detail", ticket_id=ticket.id))
