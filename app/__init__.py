@@ -27,6 +27,7 @@ def create_app(config_class=Config):
     from app.blueprints.auth.routes import auth_bp
     from app.blueprints.calendar.routes import calendar_bp
     from app.blueprints.dashboard.routes import dashboard_bp
+    from app.blueprints.game.routes import game_bp
     from app.blueprints.templates_admin.routes import templates_bp
     from app.blueprints.tickets.routes import tickets_bp
     from app.blueprints.users.routes import users_bp
@@ -35,6 +36,7 @@ def create_app(config_class=Config):
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(tickets_bp)
     app.register_blueprint(calendar_bp)
+    app.register_blueprint(game_bp)
     app.register_blueprint(templates_bp)
     app.register_blueprint(users_bp)
     app.register_blueprint(audit_bp)

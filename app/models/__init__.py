@@ -1,4 +1,13 @@
 from app.models.audit import AuditLog
+from app.models.game import (
+    GameAchievement,
+    GameHand,
+    GameJoker,
+    GameUserAchievement,
+    GameUserJoker,
+    GameUserSettings,
+    GameUserState,
+)
 from app.models.template import TicketTemplate
 from app.models.ticket import (
     PRIORITIES,
@@ -26,6 +35,13 @@ from app.models.user import (
 __all__ = [
     "Area",
     "AuditLog",
+    "GameHand",
+    "GameJoker",
+    "GameUserJoker",
+    "GameAchievement",
+    "GameUserAchievement",
+    "GameUserSettings",
+    "GameUserState",
     "Permission",
     "PersistentLoginToken",
     "Role",

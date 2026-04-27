@@ -66,9 +66,66 @@
 </main>
 <footer class="app-footer">
   <div class="app-footer-inner">
-    <span>Develop by <a href="mailto:amedina@edesal.com.ar">Abraham</a>, todos los derechos reservados. Y los izquierdos. 2026</span>
+    <span>Develop by <a href="mailto:amedina@edesal.com.ar">Abraham</a>, todos los derechos reservados. <button type="button" class="footer-egg-trigger" id="pokerLeftiesTrigger">y los izquierdos</button>. 2026</span>
   </div>
 </footer>
+{% if current_user.is_authenticated %}
+<div class="modal fade poker-modal poker16-modal" id="pokerLeftiesModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content poker16-shell">
+      <div class="modal-header poker16-header">
+        <div>
+          <span class="poker16-kicker">Easter egg interno</span>
+          <h2 class="modal-title">Poker de los Izquierdos</h2>
+        </div>
+        <button type="button" class="poker16-close" data-bs-dismiss="modal" aria-label="Cerrar">X</button>
+      </div>
+      <div class="modal-body poker16-body" data-poker-lefties data-csrf="{{ csrf_token() }}">
+        <div class="poker16-scanlines"></div>
+        <div class="poker16-topline">
+          <div><strong id="pokerPoints">0</strong><span>PTS</span></div>
+          <div><strong id="pokerHands">0</strong><span>MANOS</span></div>
+          <div><strong id="pokerStreak">0</strong><span>RACHA</span></div>
+          <div><strong id="pokerReset">-</strong><span>RESET</span></div>
+        </div>
+        <div class="poker16-tabs" role="tablist">
+          <button type="button" class="active" data-poker-tab="play">Mesa</button>
+          <button type="button" data-poker-tab="jokers">Comodines</button>
+          <button type="button" data-poker-tab="achievements">Logros</button>
+          <button type="button" data-poker-tab="ranking">Ranking</button>
+        </div>
+        <div class="poker16-message" id="pokerMessage">INSERT COIN: cero dinero real, solo puntos ficticios.</div>
+        <section class="poker16-tab-panel active" data-poker-panel="play">
+          <div class="poker16-cards" id="pokerCards"></div>
+          <div class="poker16-actions">
+            <button class="poker16-btn primary" id="pokerStart" type="button">REPARTIR</button>
+            <button class="poker16-btn" id="pokerDiscard" type="button" disabled>DESCARTAR</button>
+            <button class="poker16-btn success" id="pokerScore" type="button" disabled>PUNTUAR</button>
+          </div>
+          <div class="poker16-result" id="pokerResult"></div>
+          <div class="poker16-history">
+            <div class="poker16-panel-title">Historial reciente</div>
+            <div id="pokerHistory" class="poker16-history-list"></div>
+          </div>
+        </section>
+        <section class="poker16-tab-panel" data-poker-panel="jokers">
+          <div class="poker16-panel-title">Comodines desbloqueados - equipar maximo 2</div>
+          <div id="pokerJokers" class="poker16-joker-grid"></div>
+        </section>
+        <section class="poker16-tab-panel" data-poker-panel="achievements">
+          <div class="poker16-panel-title">Logros absurdos</div>
+          <div id="pokerAchievements" class="poker16-achievement-grid"></div>
+        </section>
+        <section class="poker16-tab-panel" data-poker-panel="ranking">
+          <div class="poker16-panel-title">Ranking interno</div>
+          <div id="pokerRanking" class="poker16-ranking"></div>
+        </section>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 (function(){
@@ -86,6 +143,7 @@
   }));
 })();
 </script>
+{% if current_user.is_authenticated %}<script src="{{ url_for('static', filename='js/poker-lefties.js') }}"></script>{% endif %}
 {% block scripts %}{% endblock %}
 </body>
 </html>

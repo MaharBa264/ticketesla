@@ -1,9 +1,10 @@
 from flask import Blueprint, flash, redirect, render_template, request, url_for
-from flask_login import login_required
+from flask_login import current_user, login_required
 
 from app.extensions import db
-from app.models import Area, Permission, PersistentLoginToken, Role, User
+from app.models import Area, GameUserSettings, Permission, PersistentLoginToken, Role, User
 from app.services.audit_service import log_action
+from app.services.game_service import reset_current_window
 from app.services.permission_service import require_permission
 from app.time_utils import now_utc
 
@@ -21,7 +22,8 @@ def _ids_from_form(field_name):
 
 
 def _render_form(user, areas, roles, permissions):
-    return render_template("users/edit.html", user=user, areas=areas, roles=roles, permissions=permissions)
+    game_settings = GameUserSettings.query.get(user.id) if user else None
+    return render_template("users/edit.html", user=user, areas=areas, roles=roles, permissions=permissions, game_settings=game_settings)
 
 
 @users_bp.get("/")
@@ -98,6 +100,19 @@ def edit(user_id=None):
         user.visible_areas = Area.query.filter(Area.id.in_(visible_area_ids)).all() if visible_area_ids else []
 
         db.session.flush()
+        settings = GameUserSettings.query.get(user.id)
+        if settings is None:
+            settings = GameUserSettings(user_id=user.id)
+            db.session.add(settings)
+        settings.enabled = bool(request.form.get("game_enabled"))
+        settings.ranking_enabled = bool(request.form.get("game_ranking_enabled"))
+        try:
+            settings.hands_limit = max(1, min(int(request.form.get("game_hands_limit", 3)), 50))
+            settings.window_minutes = max(1, min(int(request.form.get("game_window_minutes", 120)), 10080))
+        except ValueError:
+            settings.hands_limit = 3
+            settings.window_minutes = 120
+        settings.updated_by = current_user.id
         log_action("user_saved", "User", user.id)
         db.session.commit()
         flash("Usuario guardado.", "success")
@@ -116,4 +131,16 @@ def revoke_tokens(user_id):
     log_action("user_tokens_revoked", "User", user_id, new_value=str(len(tokens)))
     db.session.commit()
     flash("Sesiones persistentes revocadas.", "success")
+    return redirect(url_for("users.edit", user_id=user_id))
+
+
+@users_bp.post("/<int:user_id>/reset-game-window")
+@login_required
+@require_permission("can_manage_users")
+def reset_game_window(user_id):
+    user = User.query.get_or_404(user_id)
+    reset_current_window(user)
+    log_action("game_window_reset", "User", user_id)
+    db.session.commit()
+    flash("Contador actual del juego reiniciado.", "success")
     return redirect(url_for("users.edit", user_id=user_id))

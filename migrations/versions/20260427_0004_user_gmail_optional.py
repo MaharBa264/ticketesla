@@ -15,18 +15,18 @@ depends_on = None
 
 
 def upgrade():
-    op.alter_column(
-        "users",
-        "gmail",
-        existing_type=sa.String(length=160),
-        nullable=True,
-    )
+    with op.batch_alter_table("users") as batch_op:
+        batch_op.alter_column(
+            "gmail",
+            existing_type=sa.String(length=160),
+            nullable=True,
+        )
 
 
 def downgrade():
-    op.alter_column(
-        "users",
-        "gmail",
-        existing_type=sa.String(length=160),
-        nullable=False,
-    )
+    with op.batch_alter_table("users") as batch_op:
+        batch_op.alter_column(
+            "gmail",
+            existing_type=sa.String(length=160),
+            nullable=False,
+        )

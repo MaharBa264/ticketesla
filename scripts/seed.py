@@ -1,6 +1,7 @@
 import os
 
 from app.models import Area, Permission, Role, TicketTemplate, User
+from app.services.game_service import ensure_seed_catalogs
 
 AREAS = ["Comunicaciones", "Protecciones", "Telecontrol", "CMD"]
 
@@ -196,3 +197,5 @@ def seed_data(session):
         elif not template.schema_json or not (template.schema_json.get("fields") if isinstance(template.schema_json, dict) else None):
             template.schema_json = item["schema"]
             template.body = item["body"]
+
+    ensure_seed_catalogs()
