@@ -63,7 +63,7 @@ class User(UserMixin, db.Model):
     full_name = db.Column(db.String(160), nullable=False)
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
-    gmail = db.Column(db.String(160), unique=True, nullable=False)
+    gmail = db.Column(db.String(160), unique=True, nullable=True)
     corporate_email = db.Column(db.String(160))
     phone = db.Column(db.String(50))
     active = db.Column(db.Boolean, default=True, nullable=False)

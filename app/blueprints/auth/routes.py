@@ -1,5 +1,6 @@
 from flask import Blueprint, flash, make_response, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user
+from sqlalchemy import or_
 
 from app.extensions import db
 from app.models import Area, Role, User
@@ -8,6 +9,13 @@ from app.services.audit_service import log_action
 from app.time_utils import now_utc
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
+
+
+def _safe_next(default_endpoint="dashboard.index"):
+    value = request.form.get("next") or request.args.get("next") or ""
+    if value.startswith("/") and not value.startswith("//"):
+        return value
+    return url_for(default_endpoint)
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
@@ -21,7 +29,8 @@ def login():
             login_user(user)
             log_action("login", "User", user.id, user=user)
             db.session.commit()
-            response = make_response(redirect(url_for("dashboard.index")))
+            target = url_for("auth.complete_profile") if not user.gmail else url_for("dashboard.index")
+            response = make_response(redirect(target))
             if request.form.get("remember"):
                 cookie, expires = create_persistent_login(user)
                 set_remember_cookie(response, cookie, expires)
@@ -30,21 +39,52 @@ def login():
     return render_template("auth/login.html")
 
 
+@auth_bp.route("/complete-profile", methods=["GET", "POST"])
+@login_required
+def complete_profile():
+    if current_user.gmail:
+        return redirect(_safe_next())
+
+    if request.method == "POST":
+        gmail = request.form.get("gmail", "").strip().lower()
+        if not gmail.endswith("@gmail.com"):
+            flash("Para continuar, cargá un correo Gmail válido terminado en @gmail.com.", "warning")
+            return render_template("auth/complete_profile.html", next_url=_safe_next())
+        exists = User.query.filter(User.gmail == gmail, User.id != current_user.id).first()
+        if exists:
+            flash("Ese correo Gmail ya está asociado a otro usuario.", "warning")
+            return render_template("auth/complete_profile.html", next_url=_safe_next())
+        current_user.gmail = gmail
+        corporate_email = request.form.get("corporate_email", "").strip()
+        phone = request.form.get("phone", "").strip()
+        if corporate_email:
+            current_user.corporate_email = corporate_email
+        if phone:
+            current_user.phone = phone
+        log_action("user_completed_required_profile", "User", current_user.id, user=current_user)
+        db.session.commit()
+        flash("Datos completados. Ya podés usar Ticketesla.", "success")
+        return redirect(_safe_next())
+
+    return render_template("auth/complete_profile.html", next_url=_safe_next())
+
+
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
     areas = Area.query.filter_by(active=True).order_by(Area.name).all()
     if request.method == "POST":
         gmail = request.form.get("gmail", "").strip().lower()
+        username = request.form.get("username", "").strip()
         if not gmail.endswith("@gmail.com"):
             flash("El correo Gmail debe terminar en @gmail.com.", "warning")
             return render_template("auth/register.html", areas=areas)
-        if User.query.filter((User.username == request.form.get("username")) | (User.gmail == gmail)).first():
+        if User.query.filter(or_(User.username == username, User.gmail == gmail)).first():
             flash("Ya existe un usuario con ese username o Gmail.", "warning")
             return render_template("auth/register.html", areas=areas)
         role = Role.query.filter_by(name="Solicitante").first()
         user = User(
             full_name=request.form.get("full_name", "").strip(),
-            username=request.form.get("username", "").strip(),
+            username=username,
             gmail=gmail,
             corporate_email=request.form.get("corporate_email") or None,
             phone=request.form.get("phone") or None,

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Completar datos · Ticketesla{% endblock %}
+{% block content %}
+<div class="auth-shell">
+  <form method="post" class="auth-card auth-card-wide">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="next" value="{{ next_url }}">
+    <span class="page-kicker">Primer ingreso</span>
+    <h1>Completá tu Gmail</h1>
+    <p class="lead-muted">Para usar Ticketesla necesitamos asociar tu usuario a un correo Gmail. Esto se pide una sola vez.</p>
+
+    <label class="form-label">Correo Gmail obligatorio</label>
+    <input class="form-control" type="email" name="gmail" placeholder="usuario@gmail.com" autocomplete="email" required autofocus>
+    <div class="form-text">Debe terminar en <strong>@gmail.com</strong>.</div>
+
+    <label class="form-label mt-3">Correo corporativo</label>
+    <input class="form-control" type="email" name="corporate_email" value="{{ current_user.corporate_email or '' }}" placeholder="usuario@edesal.com.ar">
+
+    <label class="form-label mt-3">Teléfono</label>
+    <input class="form-control" name="phone" value="{{ current_user.phone or '' }}" placeholder="Opcional">
+
+    <button class="btn btn-primary w-100 mt-4">Guardar y continuar</button>
+  </form>
+</div>
+{% endblock %}

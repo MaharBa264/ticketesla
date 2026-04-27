@@ -10,6 +10,20 @@ from app.time_utils import now_utc
 users_bp = Blueprint("users", __name__, url_prefix="/users")
 
 
+def _ids_from_form(field_name):
+    ids = []
+    for raw in request.form.getlist(field_name):
+        try:
+            ids.append(int(raw))
+        except (TypeError, ValueError):
+            continue
+    return ids
+
+
+def _render_form(user, areas, roles, permissions):
+    return render_template("users/edit.html", user=user, areas=areas, roles=roles, permissions=permissions)
+
+
 @users_bp.get("/")
 @login_required
 @require_permission("can_manage_users")
@@ -26,32 +40,70 @@ def edit(user_id=None):
     areas = Area.query.order_by(Area.name).all()
     roles = Role.query.order_by(Role.name).all()
     permissions = Permission.query.order_by(Permission.name).all()
+
     if request.method == "POST":
-        gmail = request.form.get("gmail", "").strip().lower()
-        if not gmail.endswith("@gmail.com"):
-            flash("El correo Gmail debe terminar en @gmail.com.", "warning")
-            return render_template("users/edit.html", user=user, areas=areas, roles=roles, permissions=permissions)
+        full_name = request.form.get("full_name", "").strip()
+        username = request.form.get("username", "").strip()
+        gmail_raw = request.form.get("gmail", "").strip().lower()
+        gmail = gmail_raw or None
+        password = request.form.get("password", "")
+
+        if not full_name or not username:
+            flash("Nombre completo y usuario son obligatorios.", "warning")
+            return _render_form(user, areas, roles, permissions)
+
+        if user is None and not password:
+            flash("La contraseña es obligatoria para crear un usuario nuevo.", "warning")
+            return _render_form(user, areas, roles, permissions)
+
+        if gmail and not gmail.endswith("@gmail.com"):
+            flash("Si cargás un Gmail, debe terminar en @gmail.com. También podés dejarlo vacío y el usuario lo completará en su primer ingreso.", "warning")
+            return _render_form(user, areas, roles, permissions)
+
+        username_query = User.query.filter(User.username == username)
+        if user is not None:
+            username_query = username_query.filter(User.id != user.id)
+        if username_query.first():
+            flash("Ya existe otro usuario con ese nombre de usuario.", "warning")
+            return _render_form(user, areas, roles, permissions)
+
+        if gmail:
+            gmail_query = User.query.filter(User.gmail == gmail)
+            if user is not None:
+                gmail_query = gmail_query.filter(User.id != user.id)
+            if gmail_query.first():
+                flash("Ese Gmail ya está asociado a otro usuario. Dejalo vacío o cargá uno diferente.", "warning")
+                return _render_form(user, areas, roles, permissions)
+
         if user is None:
             user = User()
             db.session.add(user)
-        user.full_name = request.form.get("full_name", "").strip()
-        user.username = request.form.get("username", "").strip()
+
+        user.full_name = full_name
+        user.username = username
         user.gmail = gmail
         user.corporate_email = request.form.get("corporate_email") or None
         user.phone = request.form.get("phone") or None
         user.main_area_id = int(request.form.get("main_area_id"))
         user.active = bool(request.form.get("active"))
-        if request.form.get("password"):
-            user.set_password(request.form["password"])
-        user.roles = Role.query.filter(Role.id.in_([int(x) for x in request.form.getlist("roles")])).all()
-        user.direct_permissions = Permission.query.filter(Permission.id.in_([int(x) for x in request.form.getlist("permissions")])).all()
-        user.visible_areas = Area.query.filter(Area.id.in_([int(x) for x in request.form.getlist("visible_areas")])).all()
+        if password:
+            user.set_password(password)
+
+        role_ids = _ids_from_form("roles")
+        permission_ids = _ids_from_form("permissions")
+        visible_area_ids = _ids_from_form("visible_areas")
+
+        user.roles = Role.query.filter(Role.id.in_(role_ids)).all() if role_ids else []
+        user.direct_permissions = Permission.query.filter(Permission.id.in_(permission_ids)).all() if permission_ids else []
+        user.visible_areas = Area.query.filter(Area.id.in_(visible_area_ids)).all() if visible_area_ids else []
+
         db.session.flush()
         log_action("user_saved", "User", user.id)
         db.session.commit()
         flash("Usuario guardado.", "success")
         return redirect(url_for("users.index"))
-    return render_template("users/edit.html", user=user, areas=areas, roles=roles, permissions=permissions)
+
+    return _render_form(user, areas, roles, permissions)
 
 
 @users_bp.post("/<int:user_id>/revoke-tokens")

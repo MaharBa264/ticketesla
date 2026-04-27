@@ -1,6 +1,6 @@
 import logging
 
-from flask import Flask, g, session
+from flask import Flask, g, redirect, request, session, url_for
 from flask_login import current_user
 
 from app.config import Config
@@ -54,6 +54,17 @@ def create_app(config_class=Config):
             authenticate_from_persistent_cookie()
         g.user = current_user
 
+        if current_user.is_authenticated and not current_user.gmail:
+            endpoint = request.endpoint or ""
+            allowed_endpoints = {
+                "auth.complete_profile",
+                "auth.logout",
+                "static",
+                "health",
+            }
+            if endpoint not in allowed_endpoints and not endpoint.startswith("api."):
+                return redirect(url_for("auth.complete_profile", next=request.full_path))
+
     @app.context_processor
     def inject_helpers():
         return {"has_perm": lambda name: current_user.is_authenticated and current_user.has_permission(name)}
@@ -61,5 +72,9 @@ def create_app(config_class=Config):
     @app.get("/health")
     def health():
         return {"status": "OK", "version": app.config["RELEASE_VERSION"]}
+
+    @app.get("/login")
+    def login_shortcut():
+        return redirect(url_for("auth.login"))
 
     return app

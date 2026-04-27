@@ -62,3 +62,52 @@ a{color:var(--brand)}a:hover{color:var(--brand-dark)}
 .app-footer{position:relative;z-index:1;padding:0 32px 26px}.app-footer-inner{max-width:1500px;margin:0 auto;color:var(--muted);font-size:.86rem;text-align:center;border:1px solid rgba(226,232,240,.85);background:rgba(255,255,255,.62);backdrop-filter:blur(12px);border-radius:999px;padding:11px 18px;box-shadow:var(--shadow-soft)}.app-footer a{font-weight:850;text-decoration:none;color:var(--brand-dark)}.app-footer a:hover{text-decoration:underline;color:var(--brand)}
 @media(max-width:760px){.app-footer{padding:0 18px 20px}.app-footer-inner{border-radius:18px;font-size:.8rem;line-height:1.35}}
 
+
+/* Selector simple de color de interfaz */
+body[data-theme="blue"]{
+  --brand:#2563eb;
+  --brand-2:#0ea5e9;
+  --brand-dark:#1d4ed8;
+  --bg:#eef4ff;
+}
+body[data-theme="pink"]{
+  --brand:#db2777;
+  --brand-2:#f472b6;
+  --brand-dark:#be185d;
+  --bg:#fff1f7;
+}
+body[data-theme="green"]{
+  --brand:#16a34a;
+  --brand-2:#14b8a6;
+  --brand-dark:#15803d;
+  --bg:#effcf4;
+}
+.theme-picker{display:flex;gap:7px;align-items:center;margin-right:10px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.82);padding:7px 8px;box-shadow:var(--shadow-soft)}
+.theme-dot{width:18px;height:18px;border-radius:999px;border:2px solid #fff;box-shadow:0 0 0 1px rgba(15,23,42,.16);cursor:pointer;transition:transform .15s ease, box-shadow .15s ease}.theme-dot:hover{transform:translateY(-1px) scale(1.05)}.theme-dot.active{box-shadow:0 0 0 2px var(--brand),0 8px 16px rgba(15,23,42,.12)}.theme-blue{background:linear-gradient(135deg,#2563eb,#0ea5e9)}.theme-pink{background:linear-gradient(135deg,#db2777,#f472b6)}.theme-green{background:linear-gradient(135deg,#16a34a,#14b8a6)}
+body[data-theme] .page-kicker,body[data-theme] .step-badge,body[data-theme] .area-pill,body[data-theme] .field-chip{background:color-mix(in srgb, var(--brand) 12%, white);color:var(--brand-dark)}
+body[data-theme] .btn-check:checked+.choice{background:linear-gradient(135deg,color-mix(in srgb, var(--brand) 11%, white),#eff6ff);border-color:color-mix(in srgb, var(--brand) 45%, white);color:var(--brand-dark)}
+body[data-theme] .structured-panel{border-color:color-mix(in srgb, var(--brand) 28%, white);background:linear-gradient(135deg,color-mix(in srgb, var(--brand) 8%, white),#eff6ff)}
+
+/* Nuevo ticket: datos opcionales más livianos */
+.optional-data-panel{background:#fbfdff;border:1px dashed var(--line-strong);border-radius:18px;padding:14px;margin-left:0;margin-right:0}.optional-data-panel .form-label::after{content:""}
+
+/* Calendario de tres meses */
+.calendar-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.calendar-toolbar-title{font-weight:850;color:var(--ink);letter-spacing:-.02em}.calendar-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.calendar-mini{min-width:0}.calendar-mini .fc{font-size:.82rem}.calendar-mini .fc-toolbar-title{font-size:1rem;font-weight:850;text-transform:capitalize}.calendar-mini .fc-header-toolbar{margin-bottom:.65rem!important}.calendar-mini .fc-button{display:none!important}.calendar-mini .fc-daygrid-day-frame{min-height:72px}.calendar-mini .fc-daygrid-day-number{font-size:.78rem}.calendar-mini .fc-event{border-radius:8px;border:0;padding:1px 4px;font-weight:700;background:var(--brand);border-color:var(--brand)}.calendar-mini.is-current{box-shadow:0 18px 45px rgba(15,23,42,.11);border-color:color-mix(in srgb, var(--brand) 30%, white)}.calendar-mini-label{display:inline-flex;margin-bottom:8px;border-radius:999px;padding:5px 10px;background:color-mix(in srgb, var(--brand) 10%, white);color:var(--brand-dark);font-weight:850;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em}
+@media(max-width:1100px){.theme-picker{margin-top:8px}.calendar-grid{grid-template-columns:1fr}.calendar-mini .fc-daygrid-day-frame{min-height:82px}}
+
+/* User administration refinements */
+.auth-card-wide{width:min(560px,94vw)}
+.user-admin-form{max-width:1180px;margin-inline:auto}
+.checkbox-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.checkbox-grid-dense{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.checkbox-grid-areas{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.choice-card{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:18px;background:rgba(255,255,255,.78);padding:14px 15px;min-height:74px;cursor:pointer;transition:.18s ease;box-shadow:0 10px 28px rgba(15,23,42,.04)}
+.choice-card:hover{border-color:color-mix(in srgb,var(--brand) 45%,#cbd5e1);box-shadow:0 16px 34px rgba(15,23,42,.07);transform:translateY(-1px)}
+.choice-card .form-check-input{margin-top:3px;flex:0 0 auto}
+.choice-card span{display:flex;flex-direction:column;gap:3px;line-height:1.25}
+.choice-card strong{font-size:.95rem;color:#0f172a}
+.choice-card small{color:var(--muted);font-weight:500}
+.choice-card-inline{width:100%;min-height:auto}
+.form-actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.status-pendiente{background:#fff7ed;color:#c2410c;border-color:#fed7aa}
+@media(max-width:760px){.checkbox-grid,.checkbox-grid-dense,.checkbox-grid-areas{grid-template-columns:1fr}.choice-card{border-radius:15px}}

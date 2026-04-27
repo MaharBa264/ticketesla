@@ -2,7 +2,7 @@ import os
 
 from app.models import Area, Permission, Role, TicketTemplate, User
 
-AREAS = ["Comunicaciones", "Protecciones", "Telecontrol", "SCADA"]
+AREAS = ["Comunicaciones", "Protecciones", "Telecontrol", "CMD"]
 
 PERMISSIONS = [
     "can_create_ticket",
@@ -62,7 +62,7 @@ TEMPLATES = [
             field("IP anterior", placeholder="192.168.1.10"),
             field("IP nueva", placeholder="192.168.1.20"),
             field("Motivo del cambio", "textarea"),
-            field("Validación realizada", "textarea", help_text="Ping, acceso web, SCADA, prueba de comunicación, etc."),
+            field("Validación realizada", "textarea", help_text="Ping, acceso web, CMD, prueba de comunicación, etc."),
         ),
     },
     {
@@ -82,11 +82,11 @@ TEMPLATES = [
         ),
     },
     {
-        "name": "Registro de cambio en base SCADA",
-        "area": "SCADA",
+        "name": "Registro de cambio en base CMD",
+        "area": "CMD",
         "type": "Registro de cambio",
         "subtype": "Corrección",
-        "body": "Registrar cambios realizados sobre base, objeto, señal o despliegue SCADA.",
+        "body": "Registrar cambios realizados sobre base, objeto, señal o despliegue CMD.",
         "schema": schema(
             field("Sistema / servidor", placeholder="eTerra, Archive, HMI, servidor, etc."),
             field("Objeto modificado", placeholder="Señal, display, punto, equipo, dataset"),
@@ -96,12 +96,12 @@ TEMPLATES = [
     },
     {
         "name": "Solicitud de corrección de señal",
-        "area": "SCADA",
+        "area": "CMD",
         "type": "Solicitud de intervención",
         "subtype": "Corrección",
         "body": "Solicitar corrección de una señal, indicación, comando o analógica.",
         "schema": schema(
-            field("Señal afectada", placeholder="Nombre SCADA / tag / punto"),
+            field("Señal afectada", placeholder="Nombre CMD / tag / punto"),
             field("Equipo / instalación", placeholder="ET, RTU, alimentador, línea"),
             field("Tipo de señal", "select", options=["Digital", "Analógica", "Comando", "Alarma", "Otro"]),
             field("Comportamiento observado", "textarea"),
@@ -164,6 +164,11 @@ def get_or_create(session, model, defaults=None, **kwargs):
 
 
 def seed_data(session):
+    legacy_scada = session.query(Area).filter_by(name="SCADA").first()
+    existing_cmd = session.query(Area).filter_by(name="CMD").first()
+    if legacy_scada and not existing_cmd:
+        legacy_scada.name = "CMD"
+        session.flush()
     areas = {name: get_or_create(session, Area, name=name) for name in AREAS}
     permissions = {name: get_or_create(session, Permission, name=name) for name in PERMISSIONS}
     for role_name, permission_names in ROLE_PERMISSIONS.items():

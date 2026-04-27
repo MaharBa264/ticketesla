@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
@@ -70,8 +71,34 @@ def build_description(template, structured_data, free_description):
     if free_description:
         sections.append(("Observaciones", free_description))
     if not sections:
-        raise ValueError("La descripción es obligatoria si no se usa una plantilla con campos estructurados.")
+        sections.append(("Observaciones", "Sin observaciones adicionales."))
     return "\n\n".join(f"{title}:\n{body}" for title, body in sections)
+
+
+def build_title(template, structured_data, free_description, ticket_type):
+    parts = []
+    if template and template.name:
+        parts.append(template.name)
+    else:
+        parts.append(ticket_type or "Ticket")
+    if structured_data and structured_data.get("fields"):
+        for item in structured_data["fields"]:
+            value = item.get("value")
+            if item.get("type") == "checkbox" or value in (None, ""):
+                continue
+            parts.append(str(value).replace("\n", " ").strip())
+            break
+    elif free_description:
+        parts.append(str(free_description).replace("\n", " ").strip()[:60])
+    title = " - ".join(part for part in parts if part)
+    return (title[:177] + "...") if len(title) > 180 else title
+
+
+def resolve_responsible_area_id(ticket_type, form, user):
+    if ticket_type == "Registro de cambio":
+        return user.main_area_id
+    value = form.get("responsible_area_id")
+    return int(value) if value else user.main_area_id
 
 
 def create_ticket(form, user):
@@ -80,13 +107,14 @@ def create_ticket(form, user):
     template = get_selected_template(form)
     structured_data = collect_structured_data(template, form)
     description = build_description(template, structured_data, form.get("description"))
+    title = build_title(template, structured_data, form.get("description"), ticket_type)
     ticket = Ticket(
-        number=next_ticket_number(), title=form.get("title", "").strip(), description=description,
+        number=next_ticket_number(), title=title, description=description,
         ticket_type=ticket_type, subtype=form.get("subtype"), creator_area_id=user.main_area_id,
-        responsible_area_id=int(form.get("responsible_area_id")), creator_user_id=user.id,
-        status=status, priority=form.get("priority") or None, due_at=parse_local_datetime(form.get("due_at")),
-        closed_at=now_utc() if status == "Cerrado" else None, tags=form.get("tags") or None,
-        location=form.get("location") or None, station=form.get("station") or None,
+        responsible_area_id=resolve_responsible_area_id(ticket_type, form, user), creator_user_id=user.id,
+        status=status, priority=None, due_at=parse_local_datetime(form.get("due_at")) if ticket_type == "Registro de cambio" else None,
+        closed_at=now_utc() if status == "Cerrado" else None, tags=None,
+        location=form.get("location") or None, station=None,
         affected_equipment=form.get("affected_equipment") or None,
         template_id=template.id if template else None, structured_data=structured_data,
     )
@@ -136,13 +164,29 @@ def add_comment(ticket, user, comment, comment_type=None):
     return item
 
 
+def storage_root():
+    root = Path(current_app.config["STORAGE_PATH"])
+    try:
+        root.mkdir(parents=True, exist_ok=True)
+        return root
+    except PermissionError:
+        is_dev = current_app.config.get("RELEASE_VERSION") == "dev" or os.getenv("FLASK_ENV", "").lower() == "development"
+        if not is_dev:
+            raise
+        fallback = Path(current_app.root_path).parent / "storage"
+        fallback.mkdir(parents=True, exist_ok=True)
+        current_app.logger.warning("STORAGE_PATH %s no es escribible; usando %s para DEV", root, fallback)
+        return fallback
+
+
 def save_attachments(ticket, files, user):
+    valid_files = [file for file in files if isinstance(file, FileStorage) and file.filename]
+    if not valid_files:
+        return []
     saved = []
-    base = Path(current_app.config["STORAGE_PATH"]) / "attachments" / ticket.number
+    base = storage_root() / "attachments" / ticket.number
     base.mkdir(parents=True, exist_ok=True)
-    for file in files:
-        if not isinstance(file, FileStorage) or not file.filename:
-            continue
+    for file in valid_files:
         original = secure_filename(file.filename)
         suffix = Path(original).suffix.lower()
         if suffix not in ALLOWED_EXTENSIONS:

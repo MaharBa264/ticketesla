@@ -6,7 +6,7 @@
   <div>
     <span class="page-kicker">Agenda técnica</span>
     <h1>Calendario</h1>
-    <p class="lead-muted mb-0">Tickets con fecha límite para anticipar vencimientos.</p>
+    <p class="lead-muted mb-0">Vista de tres meses: anterior, actual y próximo. Solo aparecen tickets con fecha límite.</p>
   </div>
 </div>
 <form class="filter-bar compact mb-3" id="calendarFilters">
@@ -14,7 +14,18 @@
   <select class="form-select" name="status"><option value="">Todos los estados</option>{% for s in statuses %}<option>{{ s }}</option>{% endfor %}</select>
   <button class="btn btn-outline-primary">Filtrar</button>
 </form>
-<div class="content-panel"><div id="calendar"></div></div>
+<div class="content-panel">
+  <div class="calendar-toolbar">
+    <button class="btn btn-outline-secondary" id="calendarPrev" type="button">← Mes anterior</button>
+    <div class="calendar-toolbar-title" id="calendarRangeTitle">Calendario</div>
+    <button class="btn btn-outline-secondary" id="calendarNext" type="button">Mes siguiente →</button>
+  </div>
+  <div class="calendar-grid">
+    <div><span class="calendar-mini-label">Anterior</span><div id="calendarPrevMonth" class="calendar-mini"></div></div>
+    <div><span class="calendar-mini-label">Actual</span><div id="calendarCurrentMonth" class="calendar-mini is-current"></div></div>
+    <div><span class="calendar-mini-label">Próximo</span><div id="calendarNextMonth" class="calendar-mini"></div></div>
+  </div>
+</div>
 {% endblock %}
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>

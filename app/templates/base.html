@@ -11,7 +11,7 @@
   <link href="{{ url_for('static', filename='css/app.css') }}" rel="stylesheet">
   {% block head %}{% endblock %}
 </head>
-<body class="app-body">
+<body class="app-body" data-theme="blue">
 {% if current_user.is_authenticated %}
 <nav class="navbar navbar-expand-xl app-navbar sticky-top">
   <div class="container-fluid app-nav-container">
@@ -32,6 +32,11 @@
         {% if has_perm('can_manage_users') %}<li class="nav-item"><a class="nav-link {% if ep.startswith('users.') %}active{% endif %}" href="{{ url_for('users.index') }}">Usuarios</a></li>{% endif %}
         {% if has_perm('can_view_audit_log') %}<li class="nav-item"><a class="nav-link {% if ep.startswith('audit.') %}active{% endif %}" href="{{ url_for('audit.index') }}">Auditoría</a></li>{% endif %}
       </ul>
+      <div class="theme-picker" aria-label="Elegir color de interfaz">
+        <button type="button" class="theme-dot theme-blue active" data-theme-choice="blue" title="Azul"></button>
+        <button type="button" class="theme-dot theme-pink" data-theme-choice="pink" title="Rosa"></button>
+        <button type="button" class="theme-dot theme-green" data-theme-choice="green" title="Verde"></button>
+      </div>
       <div class="app-userbox">
         <div class="user-avatar">{{ (current_user.full_name or current_user.username)[:1] }}</div>
         <div class="user-copy d-none d-lg-block">
@@ -65,6 +70,22 @@
   </div>
 </footer>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+(function(){
+  const key = "ticketesla-theme";
+  const valid = ["blue", "pink", "green"];
+  const apply = (theme) => {
+    const safe = valid.includes(theme) ? theme : "blue";
+    document.body.dataset.theme = safe;
+    document.querySelectorAll("[data-theme-choice]").forEach(btn => btn.classList.toggle("active", btn.dataset.themeChoice === safe));
+  };
+  apply(localStorage.getItem(key) || "blue");
+  document.querySelectorAll("[data-theme-choice]").forEach(btn => btn.addEventListener("click", () => {
+    localStorage.setItem(key, btn.dataset.themeChoice);
+    apply(btn.dataset.themeChoice);
+  }));
+})();
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

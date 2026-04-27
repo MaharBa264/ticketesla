@@ -6,34 +6,41 @@
     <div>
       <span class="page-kicker">Carga guiada</span>
       <h1>Nuevo ticket</h1>
-      <p class="lead-muted mb-0">Elegí una plantilla y completá solo los campos necesarios.</p>
+      <p class="lead-muted mb-0">Elegí una opción, una plantilla y completá solo los campos necesarios.</p>
     </div>
   </div>
-  <form method="post" enctype="multipart/form-data" class="form-panel" id="ticket-form">
+  <form method="post" enctype="multipart/form-data" class="form-panel" id="ticket-form" data-user-area-id="{{ current_user.main_area_id }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
     <div class="section-title"><span class="step-badge">1</span><h2 class="mb-0">¿Qué querés hacer?</h2></div>
     <div class="row g-3 mb-4 mt-1">
       {% for type in types %}
       <div class="col-md-6">
         <input type="radio" class="btn-check" name="ticket_type" id="type{{ loop.index }}" value="{{ type }}" required>
-        <label class="btn btn-outline-primary w-100 choice" for="type{{ loop.index }}"><strong>{{ type }}</strong><span>{% if type == 'Registro de cambio' %}Dejar constancia de algo ya realizado.{% else %}Pedir corrección, revisión o asistencia.{% endif %}</span></label>
+        <label class="btn btn-outline-primary w-100 choice" for="type{{ loop.index }}"><strong>{{ type }}</strong><span>{% if type == 'Registro de cambio' %}Dejar constancia de algo ya realizado.{% else %}Solicitar una corrección, revisión o asistencia a un área responsable.{% endif %}</span></label>
       </div>
       {% endfor %}
     </div>
 
-    <div class="section-title"><span class="step-badge">2</span><h2 class="mb-0">Destino y plantilla</h2></div>
+    <div class="section-title"><span class="step-badge">2</span><h2 class="mb-0" id="ticket-context-title">Plantilla</h2></div>
     <div class="row g-3 mb-4 mt-1">
-      <div class="col-md-6"><label class="form-label">Área responsable</label><select class="form-select" name="responsible_area_id" id="responsible_area_id" required>{% for area in areas %}<option value="{{ area.id }}">{{ area.name }}</option>{% endfor %}</select></div>
+      <div class="col-md-6" id="responsible-area-wrap">
+        <label class="form-label" id="responsible-area-label">Responsable del cambio</label>
+        <select class="form-select" name="responsible_area_id" id="responsible_area_id" required>
+          {% for area in areas %}<option value="{{ area.id }}">{{ area.name }}</option>{% endfor %}
+        </select>
+        <div class="form-text" id="responsible-area-help">Área que ejecutó o deja registrado el cambio.</div>
+      </div>
       <div class="col-md-6"><label class="form-label">Subtipo</label><select class="form-select" name="subtype" id="subtype" required>{% for subtype in subtypes %}<option>{{ subtype }}</option>{% endfor %}</select></div>
       <div class="col-12">
-        <label class="form-label">Plantilla opcional</label>
+        <label class="form-label">Plantilla</label>
         <select class="form-select" name="template_id" id="template">
           <option value="">Sin plantilla</option>
           {% for t in templates %}
           <option value="{{ t.id }}" data-body="{{ t.body|e }}" data-area="{{ t.area_id }}" data-type="{{ t.suggested_type }}" data-subtype="{{ t.suggested_subtype }}" data-schema='{{ (t.schema_json or {})|tojson|forceescape }}'>{{ t.name }}</option>
           {% endfor %}
         </select>
-        <div class="form-text">Al elegir una plantilla, Ticketesla arma un formulario guiado y completa tipo, subtipo y área.</div>
+        <div class="form-text">Al elegir una plantilla, Ticketesla arma un formulario guiado y completa tipo, subtipo y área responsable cuando corresponde.</div>
       </div>
     </div>
 
@@ -42,16 +49,12 @@
       <div class="row g-3" id="structured-fields"></div>
     </section>
 
-    <div class="section-title mt-4"><span class="step-badge">4</span><h2 class="mb-0">Resumen y datos opcionales</h2></div>
-    <div class="row g-3 mt-1">
-      <div class="col-12"><label class="form-label">Título</label><input class="form-control" name="title" required placeholder="Resumen breve del ticket"></div>
-      <div class="col-12"><label class="form-label">Observaciones adicionales</label><textarea class="form-control" name="description" id="description" rows="5" placeholder="Opcional si la plantilla ya tiene campos suficientes. Usalo para aclaraciones que no entren arriba."></textarea></div>
-      <div class="col-md-6"><label class="form-label">Fecha límite</label><input class="form-control" type="datetime-local" name="due_at"></div>
-      <div class="col-md-6"><label class="form-label">Prioridad</label><select class="form-select" name="priority"><option value="">Sin prioridad</option>{% for p in priorities %}<option>{{ p }}</option>{% endfor %}</select></div>
-      <div class="col-md-4"><label class="form-label">Ubicación</label><input class="form-control" name="location"></div>
-      <div class="col-md-4"><label class="form-label">Estación</label><input class="form-control" name="station"></div>
-      <div class="col-md-4"><label class="form-label">Equipo afectado</label><input class="form-control" name="affected_equipment"></div>
-      <div class="col-md-6"><label class="form-label">Tags</label><input class="form-control" name="tags" placeholder="Ej.: RTU, IP, 61850"></div>
+    <div class="section-title mt-4"><span class="step-badge">4</span><h2 class="mb-0">Datos opcionales</h2></div>
+    <div class="row g-3 mt-1 optional-data-panel">
+      <div class="col-12"><label class="form-label">Observaciones</label><textarea class="form-control" name="description" id="description" rows="4" placeholder="Opcional. Usalo solo para aclaraciones que no entren en los campos de la plantilla."></textarea></div>
+      <div class="col-md-6 d-none" id="due-at-wrap"><label class="form-label">Fecha límite opcional</label><input class="form-control" type="datetime-local" name="due_at" id="due_at"></div>
+      <div class="col-md-6"><label class="form-label">Ubicación</label><input class="form-control" name="location" placeholder="Opcional"></div>
+      <div class="col-md-6"><label class="form-label">Equipo afectado</label><input class="form-control" name="affected_equipment" placeholder="Opcional"></div>
       <div class="col-md-6"><label class="form-label">Adjuntos</label><input class="form-control" type="file" name="attachments" multiple></div>
     </div>
     <button class="btn btn-primary btn-lg mt-4">Crear ticket</button>
