@@ -1,0 +1,10 @@
+:root{--ink:#1b2838;--muted:#64748b;--line:#d9e2ec;--brand:#0f766e;--brand-dark:#115e59;--bg:#f6f8fb}
+body{background:var(--bg);color:var(--ink);font-size:15px}
+.page{padding:28px;max-width:1500px}
+h1{font-size:1.7rem;font-weight:700;margin-bottom:.25rem}h2{font-size:1rem;font-weight:700;margin-bottom:1rem}
+.auth-shell{min-height:90vh;display:grid;place-items:center}.auth-card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:32px;width:min(420px,92vw);box-shadow:0 8px 24px rgba(15,23,42,.06)}.auth-card h1{font-size:2rem;margin-bottom:24px;text-align:center}
+.narrow{max-width:980px}.form-panel,.content-panel,.table-panel{background:#fff;border:1px solid var(--line);border-radius:8px;padding:20px;box-shadow:0 4px 16px rgba(15,23,42,.04)}.table-panel{padding:0;overflow:hidden}
+.btn-primary{background:var(--brand);border-color:var(--brand)}.btn-primary:hover{background:var(--brand-dark);border-color:var(--brand-dark)}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px}.summary-card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px}.summary-card span{display:block;color:var(--muted);font-size:.9rem}.summary-card strong{font-size:2rem;line-height:1.1}
+.filter-bar{display:grid;grid-template-columns:2fr repeat(3,minmax(150px,1fr)) auto auto;gap:10px}.choice{padding:22px 12px}.ticket-header{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:24px}.status-pill{background:#e6f4f1;color:#0f766e;border:1px solid #b7e1d8;border-radius:999px;padding:8px 14px;font-weight:700}.preline{white-space:pre-wrap}.comment{border-bottom:1px solid var(--line);padding:12px 0}.comment span{color:var(--muted);font-size:.9rem;margin-left:8px}.meta{display:grid;grid-template-columns:130px 1fr;gap:8px}.meta dt{color:var(--muted);font-weight:600}.meta dd{margin:0}
+@media(max-width:900px){.page{padding:18px}.filter-bar{grid-template-columns:1fr}.ticket-header{display:block}.status-pill{display:inline-block;margin-top:12px}.meta{grid-template-columns:1fr}}

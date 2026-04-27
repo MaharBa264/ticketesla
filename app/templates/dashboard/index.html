@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex flex-wrap gap-3 align-items-center justify-content-between mb-4">
+  <div><h1>Dashboard</h1><p class="text-muted mb-0">{{ current_user.full_name }} · {{ current_user.main_area.name }}</p></div>
+  {% if has_perm('can_create_ticket') %}<a class="btn btn-primary btn-lg" href="{{ url_for('tickets.create') }}">Nuevo ticket</a>{% endif %}
+</div>
+<div class="summary-grid mb-4">
+  {% for label, value in counts.items() %}
+  <div class="summary-card"><span>{{ label }}</span><strong>{{ value }}</strong></div>
+  {% endfor %}
+</div>
+{% include "tickets/_table.html" %}
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="narrow">
+  <h1>Editar {{ ticket.number }}</h1>
+  <form method="post" class="form-panel">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="row g-3">
+      <div class="col-12"><label class="form-label">Título</label><input class="form-control" name="title" value="{{ ticket.title }}" required></div>
+      <div class="col-12"><label class="form-label">Descripción</label><textarea class="form-control" name="description" rows="7" required>{{ ticket.description }}</textarea></div>
+      <div class="col-md-6"><label class="form-label">Área responsable</label><select class="form-select" name="responsible_area_id">{% for area in areas %}<option value="{{ area.id }}" {% if ticket.responsible_area_id==area.id %}selected{% endif %}>{{ area.name }}</option>{% endfor %}</select></div>
+      <div class="col-md-6"><label class="form-label">Subtipo</label><select class="form-select" name="subtype">{% for subtype in subtypes %}<option {% if ticket.subtype==subtype %}selected{% endif %}>{{ subtype }}</option>{% endfor %}</select></div>
+      <div class="col-md-6"><label class="form-label">Prioridad</label><select class="form-select" name="priority"><option value="">Sin prioridad</option>{% for p in priorities %}<option {% if ticket.priority==p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select></div>
+      <div class="col-md-6"><label class="form-label">Plantilla usada</label><select class="form-select" name="template_id"><option value="">Sin plantilla</option>{% for t in templates %}<option value="{{ t.id }}" {% if ticket.template_id==t.id %}selected{% endif %}>{{ t.name }}</option>{% endfor %}</select></div>
+      <div class="col-md-4"><label class="form-label">Ubicación</label><input class="form-control" name="location" value="{{ ticket.location or '' }}"></div>
+      <div class="col-md-4"><label class="form-label">Estación</label><input class="form-control" name="station" value="{{ ticket.station or '' }}"></div>
+      <div class="col-md-4"><label class="form-label">Equipo afectado</label><input class="form-control" name="affected_equipment" value="{{ ticket.affected_equipment or '' }}"></div>
+      <div class="col-12"><label class="form-label">Tags</label><input class="form-control" name="tags" value="{{ ticket.tags or '' }}"></div>
+    </div>
+    <button class="btn btn-primary mt-4">Guardar cambios</button>
+  </form>
+</div>
+{% endblock %}

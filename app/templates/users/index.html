@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3"><h1>Usuarios</h1><a class="btn btn-primary" href="{{ url_for('users.edit') }}">Nuevo usuario</a></div>
+<div class="table-panel table-responsive"><table class="table mb-0"><thead><tr><th>Nombre</th><th>Usuario</th><th>Área</th><th>Gmail</th><th>Estado</th><th>Último acceso</th><th></th></tr></thead><tbody>
+{% for u in users %}<tr><td>{{ u.full_name }}</td><td>{{ u.username }}</td><td>{{ u.main_area.name }}</td><td>{{ u.gmail }}</td><td>{{ "Activo" if u.active else "Inactivo" }}</td><td>{{ u.last_login_at|datetime_ar }}</td><td><a class="btn btn-outline-primary btn-sm" href="{{ url_for('users.edit', user_id=u.id) }}">Editar</a></td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

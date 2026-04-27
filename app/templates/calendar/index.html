@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block head %}<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">{% endblock %}
+{% block content %}
+<h1>Calendario</h1>
+<form class="filter-bar mb-3" id="calendarFilters">
+  <select class="form-select" name="area_id"><option value="">Todas las áreas</option>{% for a in areas %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}</select>
+  <select class="form-select" name="status"><option value="">Todos los estados</option>{% for s in statuses %}<option>{{ s }}</option>{% endfor %}</select>
+  <button class="btn btn-outline-primary">Filtrar</button>
+</form>
+<div class="content-panel"><div id="calendar"></div></div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script src="{{ url_for('static', filename='js/calendar.js') }}"></script>
+{% endblock %}

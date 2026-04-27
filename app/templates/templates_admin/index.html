@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Plantillas</h1>
+<div class="row g-4">
+  <div class="col-lg-5">
+    <form method="post" class="form-panel">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="form-label">Nombre</label><input class="form-control" name="name" required>
+      <label class="form-label mt-3">Área</label><select class="form-select" name="area_id">{% for a in areas %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}</select>
+      <label class="form-label mt-3">Tipo sugerido</label><select class="form-select" name="suggested_type">{% for t in types %}<option>{{ t }}</option>{% endfor %}</select>
+      <label class="form-label mt-3">Subtipo sugerido</label><select class="form-select" name="suggested_subtype">{% for s in subtypes %}<option>{{ s }}</option>{% endfor %}</select>
+      <label class="form-label mt-3">Texto base</label><textarea class="form-control" name="body" rows="8" required></textarea>
+      <div class="form-check mt-3"><input class="form-check-input" type="checkbox" name="active" checked id="active"><label class="form-check-label" for="active">Activa</label></div>
+      <button class="btn btn-primary mt-3">Crear plantilla</button>
+    </form>
+  </div>
+  <div class="col-lg-7">
+    <div class="table-panel table-responsive"><table class="table mb-0"><thead><tr><th>Nombre</th><th>Área</th><th>Tipo</th><th>Estado</th><th></th></tr></thead><tbody>
+      {% for t in templates %}<tr><td>{{ t.name }}</td><td>{{ t.area.name }}</td><td>{{ t.suggested_type }}</td><td>{{ "Activa" if t.active else "Inactiva" }}</td><td><form method="post" action="{{ url_for('templates_admin.toggle', template_id=t.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-outline-secondary btn-sm">Cambiar</button></form></td></tr>{% endfor %}
+    </tbody></table></div>
+  </div>
+</div>
+{% endblock %}

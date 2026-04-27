@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Auditoría</h1>
+<div class="table-panel table-responsive"><table class="table mb-0"><thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Entidad</th><th>IP</th></tr></thead><tbody>
+{% for log in logs %}<tr><td>{{ log.timestamp|datetime_ar }}</td><td>{{ log.user.full_name if log.user else "" }}</td><td>{{ log.action }}</td><td>{{ log.entity_type }} {{ log.entity_id or "" }}</td><td>{{ log.ip_address or "" }}</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

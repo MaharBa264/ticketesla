@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="narrow">
+  <h1>Nuevo ticket</h1>
+  <form method="post" enctype="multipart/form-data" class="form-panel">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h2>1. ¿Qué querés hacer?</h2>
+    <div class="row g-2 mb-4">{% for type in types %}<div class="col-md-6"><input type="radio" class="btn-check" name="ticket_type" id="type{{ loop.index }}" value="{{ type }}" required><label class="btn btn-outline-primary w-100 choice" for="type{{ loop.index }}">{{ type }}</label></div>{% endfor %}</div>
+    <h2>2. Datos de destino</h2>
+    <div class="row g-3 mb-4">
+      <div class="col-md-6"><label class="form-label">Área responsable</label><select class="form-select" name="responsible_area_id" required>{% for area in areas %}<option value="{{ area.id }}">{{ area.name }}</option>{% endfor %}</select></div>
+      <div class="col-md-6"><label class="form-label">Subtipo</label><select class="form-select" name="subtype" required>{% for subtype in subtypes %}<option>{{ subtype }}</option>{% endfor %}</select></div>
+      <div class="col-12"><label class="form-label">Plantilla opcional</label><select class="form-select" name="template_id" id="template"><option value="">Sin plantilla</option>{% for t in templates %}<option value="{{ t.id }}" data-body="{{ t.body|e }}">{{ t.name }}</option>{% endfor %}</select></div>
+    </div>
+    <h2>3. Descripción</h2>
+    <div class="row g-3">
+      <div class="col-12"><label class="form-label">Título</label><input class="form-control" name="title" required></div>
+      <div class="col-12"><label class="form-label">Descripción</label><textarea class="form-control" name="description" id="description" rows="7" required></textarea></div>
+      <div class="col-md-6"><label class="form-label">Fecha límite</label><input class="form-control" type="datetime-local" name="due_at"></div>
+      <div class="col-md-6"><label class="form-label">Prioridad</label><select class="form-select" name="priority"><option value="">Sin prioridad</option>{% for p in priorities %}<option>{{ p }}</option>{% endfor %}</select></div>
+      <div class="col-md-4"><label class="form-label">Ubicación</label><input class="form-control" name="location"></div>
+      <div class="col-md-4"><label class="form-label">Estación</label><input class="form-control" name="station"></div>
+      <div class="col-md-4"><label class="form-label">Equipo afectado</label><input class="form-control" name="affected_equipment"></div>
+      <div class="col-md-6"><label class="form-label">Tags</label><input class="form-control" name="tags"></div>
+      <div class="col-md-6"><label class="form-label">Adjuntos</label><input class="form-control" type="file" name="attachments" multiple></div>
+    </div>
+    <button class="btn btn-primary btn-lg mt-4">Crear ticket</button>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/ticket-form.js') }}"></script>{% endblock %}
