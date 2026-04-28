@@ -13,6 +13,14 @@ TICKET_STATUSES = (
     "Cerrado",
     "Reabierto",
 )
+ACTIVE_TICKET_STATUSES = (
+    "Nuevo",
+    "Reconocido",
+    "En curso",
+    "Derivado",
+    "Pendiente de tercero",
+)
+FINAL_TICKET_STATUSES = ("Resuelto", "Cerrado")
 PRIORITIES = ("Baja", "Normal", "Alta", "Urgente")
 
 

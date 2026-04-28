@@ -1,29 +1,33 @@
-{% extends "base.html" %}
-{% block title %}Calendario · Ticketesla{% endblock %}
+﻿{% extends "base.html" %}
+{% block title %}Calendario Â· Ticketesla{% endblock %}
 {% block head %}<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
-    <span class="page-kicker">Agenda técnica</span>
+    <span class="page-kicker">Agenda tÃ©cnica</span>
     <h1>Calendario</h1>
-    <p class="lead-muted mb-0">Vista de tres meses: anterior, actual y próximo. Solo aparecen tickets con fecha límite.</p>
+    <p class="lead-muted mb-0">Vista de tres meses: anterior, actual y prÃ³ximo. Solo aparecen tickets con fecha lÃ­mite.</p>
   </div>
 </div>
 <form class="filter-bar compact mb-3" id="calendarFilters">
-  <select class="form-select" name="area_id"><option value="">Todas las áreas</option>{% for a in areas %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}</select>
+  <select class="form-select" name="area_id"><option value="">Todas las Ã¡reas</option>{% for a in areas %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}</select>
   <select class="form-select" name="status"><option value="">Todos los estados</option>{% for s in statuses %}<option>{{ s }}</option>{% endfor %}</select>
+  <label class="choice-card choice-card-inline calendar-final-toggle">
+    <input class="form-check-input" type="checkbox" name="include_final" value="1">
+    <span><strong>Incluir resueltos/cerrados</strong><small>Apagado por defecto.</small></span>
+  </label>
   <button class="btn btn-outline-primary">Filtrar</button>
 </form>
 <div class="content-panel">
   <div class="calendar-toolbar">
-    <button class="btn btn-outline-secondary" id="calendarPrev" type="button">← Mes anterior</button>
+    <button class="btn btn-outline-secondary" id="calendarPrev" type="button">â† Mes anterior</button>
     <div class="calendar-toolbar-title" id="calendarRangeTitle">Calendario</div>
-    <button class="btn btn-outline-secondary" id="calendarNext" type="button">Mes siguiente →</button>
+    <button class="btn btn-outline-secondary" id="calendarNext" type="button">Mes siguiente â†’</button>
   </div>
   <div class="calendar-grid">
     <div><span class="calendar-mini-label">Anterior</span><div id="calendarPrevMonth" class="calendar-mini"></div></div>
     <div><span class="calendar-mini-label">Actual</span><div id="calendarCurrentMonth" class="calendar-mini is-current"></div></div>
-    <div><span class="calendar-mini-label">Próximo</span><div id="calendarNextMonth" class="calendar-mini"></div></div>
+    <div><span class="calendar-mini-label">PrÃ³ximo</span><div id="calendarNextMonth" class="calendar-mini"></div></div>
   </div>
 </div>
 {% endblock %}

@@ -11,6 +11,8 @@ from app.models.game import (
 )
 from app.models.template import TicketTemplate
 from app.models.ticket import (
+    ACTIVE_TICKET_STATUSES,
+    FINAL_TICKET_STATUSES,
     PRIORITIES,
     TICKET_STATUSES,
     TICKET_SUBTYPES,
@@ -54,4 +56,6 @@ __all__ = [
     "TicketStatusHistory",
     "TicketTemplate",
     "TicketTransfer",
+    "ACTIVE_TICKET_STATUSES",
+    "FINAL_TICKET_STATUSES",
 ]

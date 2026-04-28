@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, render_template, request
 from flask_login import current_user, login_required
 
-from app.models import Area, Ticket, TICKET_STATUSES
+from app.models import ACTIVE_TICKET_STATUSES, Area, Ticket, TICKET_STATUSES
 from app.services.permission_service import get_visible_ticket_query
 from app.time_utils import utc_to_local
 
@@ -18,6 +18,9 @@ def index():
 @login_required
 def events():
     query = get_visible_ticket_query(current_user).filter(Ticket.due_at != None)
+    include_final = request.args.get("include_final") in ("1", "true", "on")
+    if not include_final:
+        query = query.filter(Ticket.status.in_(ACTIVE_TICKET_STATUSES))
     if request.args.get("area_id"):
         query = query.filter_by(responsible_area_id=int(request.args["area_id"]))
     if request.args.get("status"):
