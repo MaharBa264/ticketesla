@@ -1,16 +1,9 @@
-from flask import Blueprint, abort, flash, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
 
 from app.extensions import db
 from app.models import Area, Ticket, TicketAttachment, TicketTemplate, TICKET_STATUSES, TICKET_SUBTYPES, TICKET_TYPES, PRIORITIES
-from app.services.permission_service import (
-    can_operate_ticket,
-    can_see_expanded_tickets,
-    can_transfer_ticket as user_can_transfer_ticket,
-    can_view_ticket,
-    get_visible_ticket_query,
-    require_permission,
-)
+from app.services.permission_service import require_permission, visible_area_ids
 from app.services.audit_service import log_action
 from app.services.ticket_service import add_comment, allowed_status_actions, change_status, create_ticket, is_status_action_allowed, save_attachments, transfer_ticket, validate_ticket_minimum_content
 
@@ -19,7 +12,7 @@ tickets_bp = Blueprint("tickets", __name__, url_prefix="/tickets")
 
 def get_visible_ticket(ticket_id):
     ticket = Ticket.query.get_or_404(ticket_id)
-    if not can_view_ticket(ticket, current_user):
+    if not current_user.can_view_area(ticket.responsible_area_id) and ticket.creator_user_id != current_user.id:
         abort(403)
     return ticket
 
@@ -27,14 +20,11 @@ def get_visible_ticket(ticket_id):
 @tickets_bp.get("/")
 @login_required
 def index():
-    requested_scope = request.args.get("scope")
+    query = Ticket.query
     if request.args.get("mine"):
-        requested_scope = "mine"
-    default_scope = "visible" if can_see_expanded_tickets(current_user) else "mine"
-    scope = requested_scope or default_scope
-    if scope not in ("mine", "attend", "visible"):
-        scope = default_scope
-    query = get_visible_ticket_query(current_user, scope=scope)
+        query = query.filter_by(creator_user_id=current_user.id)
+    else:
+        query = query.filter(Ticket.responsible_area_id.in_(visible_area_ids(current_user)))
     if request.args.get("status"):
         query = query.filter_by(status=request.args["status"])
     if request.args.get("ticket_type"):
@@ -46,15 +36,7 @@ def index():
         like = f"%{text}%"
         query = query.filter((Ticket.title.ilike(like)) | (Ticket.description.ilike(like)) | (Ticket.number.ilike(like)) | (Ticket.station.ilike(like)) | (Ticket.affected_equipment.ilike(like)) | (Ticket.location.ilike(like)) | (Ticket.tags.ilike(like)))
     tickets = query.order_by(Ticket.updated_at.desc()).limit(200).all()
-    return render_template(
-        "tickets/index.html",
-        tickets=tickets,
-        statuses=TICKET_STATUSES,
-        types=TICKET_TYPES,
-        areas=Area.query.order_by(Area.name).all(),
-        scope=scope,
-        can_see_expanded=can_see_expanded_tickets(current_user),
-    )
+    return render_template("tickets/index.html", tickets=tickets, statuses=TICKET_STATUSES, types=TICKET_TYPES, areas=Area.query.order_by(Area.name).all())
 
 
 @tickets_bp.route("/new", methods=["GET", "POST"])
@@ -68,11 +50,18 @@ def create():
             uploaded_files = request.files.getlist("attachments")
             validate_ticket_minimum_content(request.form, uploaded_files)
             ticket = create_ticket(request.form, current_user)
-            attachment_result = save_attachments(ticket, uploaded_files, current_user)
             db.session.commit()
+            try:
+                saved = save_attachments(ticket, uploaded_files, current_user)
+                db.session.commit()
+                candidate_count = len([f for f in uploaded_files if getattr(f, "filename", None)])
+                if candidate_count and not saved:
+                    flash("El ticket fue creado, pero no se guardaron adjuntos válidos.", "warning")
+            except Exception:
+                db.session.rollback()
+                current_app.logger.exception("El ticket %s fue creado, pero falló la carga de adjuntos", ticket.number)
+                flash("El ticket fue creado, pero no se pudo cargar uno o más adjuntos.", "warning")
             flash(f"Ticket {ticket.number} creado.", "success")
-            if attachment_result["errors"]:
-                flash("El ticket fue guardado, pero no se pudo cargar uno o más adjuntos.", "warning")
             return redirect(url_for("tickets.detail", ticket_id=ticket.id))
         except ValueError as exc:
             db.session.rollback()
@@ -91,16 +80,7 @@ def search():
 def detail(ticket_id):
     ticket = get_visible_ticket(ticket_id)
     areas = Area.query.filter_by(active=True).order_by(Area.name).all()
-    return render_template(
-        "tickets/detail.html",
-        ticket=ticket,
-        areas=areas,
-        statuses=TICKET_STATUSES,
-        status_actions=allowed_status_actions(ticket, current_user),
-        can_operate=can_operate_ticket(ticket, current_user),
-        can_edit_ticket=can_operate_ticket(ticket, current_user, "can_edit_ticket"),
-        can_transfer_ticket=user_can_transfer_ticket(ticket, current_user),
-    )
+    return render_template("tickets/detail.html", ticket=ticket, areas=areas, statuses=TICKET_STATUSES, status_actions=allowed_status_actions(ticket, current_user))
 
 
 @tickets_bp.route("/<int:ticket_id>/edit", methods=["GET", "POST"])
@@ -108,8 +88,6 @@ def detail(ticket_id):
 @require_permission("can_edit_ticket")
 def edit(ticket_id):
     ticket = get_visible_ticket(ticket_id)
-    if not can_operate_ticket(ticket, current_user, "can_edit_ticket"):
-        abort(403)
     areas = Area.query.filter_by(active=True).order_by(Area.name).all()
     templates = TicketTemplate.query.filter_by(active=True).order_by(TicketTemplate.name).all()
     if request.method == "POST":
@@ -149,11 +127,9 @@ def status(ticket_id):
     new_status = request.form.get("status")
     if not is_status_action_allowed(ticket, new_status, current_user):
         abort(403)
-    extra_hand_granted = change_status(ticket, new_status, current_user, request.form.get("comment"))
+    change_status(ticket, new_status, current_user, request.form.get("comment"))
     db.session.commit()
     flash("Estado actualizado.", "success")
-    if extra_hand_granted:
-        flash("Ganaste +1 mano extra en Poker de los Izquierdos.", "success")
     return redirect(url_for("tickets.detail", ticket_id=ticket.id))
 
 
@@ -162,12 +138,10 @@ def status(ticket_id):
 @require_permission("can_transfer_ticket")
 def transfer(ticket_id):
     ticket = get_visible_ticket(ticket_id)
-    if not user_can_transfer_ticket(ticket, current_user):
-        abort(403)
     try:
-        transfer = transfer_ticket(ticket, request.form.get("to_area_id"), request.form.get("reason"), current_user)
+        transfer_ticket(ticket, request.form.get("to_area_id"), request.form.get("reason"), current_user)
         db.session.commit()
-        flash(f"Ticket derivado correctamente a {transfer.to_area.name}.", "success")
+        flash("Ticket derivado.", "success")
     except ValueError as exc:
         flash(str(exc), "warning")
     return redirect(url_for("tickets.detail", ticket_id=ticket.id))
@@ -177,23 +151,18 @@ def transfer(ticket_id):
 @login_required
 def attachments(ticket_id):
     ticket = get_visible_ticket(ticket_id)
-    result = save_attachments(ticket, request.files.getlist("attachments"), current_user)
-    db.session.commit()
-    if result["saved"]:
-        flash("Adjunto cargado correctamente.", "success")
-    if result["errors"]:
-        flash("No se pudo cargar el adjunto. Verificá el tamaño o formato.", "warning")
+    try:
+        saved = save_attachments(ticket, request.files.getlist("attachments"), current_user)
+        db.session.commit()
+        if saved:
+            flash(f"Adjuntos cargados: {len(saved)}.", "success")
+        else:
+            flash("No se cargaron adjuntos válidos. Revisá formato, tamaño o nombre del archivo.", "warning")
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("No se pudieron guardar adjuntos para ticket %s", ticket.number)
+        flash("No se pudo cargar el adjunto. Verificá permisos de almacenamiento, tamaño o formato.", "danger")
     return redirect(url_for("tickets.detail", ticket_id=ticket.id))
-
-
-@tickets_bp.get("/<int:ticket_id>/attachments/<int:attachment_id>/download")
-@login_required
-def download_ticket_attachment(ticket_id, attachment_id):
-    attachment = TicketAttachment.query.get_or_404(attachment_id)
-    if attachment.ticket_id != ticket_id:
-        abort(404)
-    get_visible_ticket(attachment.ticket_id)
-    return send_file(attachment.path, as_attachment=True, download_name=attachment.filename_original)
 
 
 @tickets_bp.get("/attachments/<int:attachment_id>")

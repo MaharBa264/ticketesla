@@ -26,15 +26,15 @@ class Config:
     PERMANENT_SESSION_LIFETIME = timedelta(days=1)
     MAX_CONTENT_LENGTH = int(os.getenv("MAX_UPLOAD_MB", "20")) * 1024 * 1024
     STORAGE_PATH = os.getenv("STORAGE_PATH", str(BASE_DIR / "storage"))
-    ALLOWED_UPLOAD_EXTENSIONS = os.getenv("ALLOWED_UPLOAD_EXTENSIONS", "pdf,png,jpg,jpeg,txt,csv,xlsx,docx,zip")
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
     RELEASE_VERSION = os.getenv("RELEASE_VERSION", "dev")
     TIMEZONE = "America/Argentina/San_Luis"
-    BASE_URL = os.getenv("BASE_URL", "").rstrip("/")
+
+    # Email / Office 365 SMTP. Por defecto no envía nada real.
     EMAIL_ENABLED = os.getenv("EMAIL_ENABLED", "false").lower() == "true"
-    EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "smtp")
     EMAIL_DRY_RUN = os.getenv("EMAIL_DRY_RUN", "true").lower() == "true"
-    EMAIL_DEBUG_TO = os.getenv("EMAIL_DEBUG_TO", "")
+    EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "smtp")
+    BASE_URL = os.getenv("BASE_URL", "").rstrip("/")
     SMTP_HOST = os.getenv("SMTP_HOST", "")
     SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
     SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
@@ -43,3 +43,9 @@ class Config:
     SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
     SMTP_FROM = os.getenv("SMTP_FROM", "")
     SMTP_TIMEOUT = int(os.getenv("SMTP_TIMEOUT", "10"))
+    EMAIL_DEBUG_TO = os.getenv("EMAIL_DEBUG_TO", "")
+
+    ALLOWED_UPLOAD_EXTENSIONS = os.getenv(
+        "ALLOWED_UPLOAD_EXTENSIONS",
+        "pdf,png,jpg,jpeg,txt,csv,xlsx,docx,zip",
+    )

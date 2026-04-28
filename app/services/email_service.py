@@ -1,65 +1,108 @@
 import logging
 import smtplib
-from email.message import EmailMessage
+from email.mime.text import MIMEText
+from email.utils import parseaddr
 
 from flask import current_app
 
 logger = logging.getLogger(__name__)
 
 
-def _split_recipients(recipients):
-    if not recipients:
+def _as_bool(value, default=False):
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"1", "true", "yes", "y", "on", "si", "sí"}
+
+
+def _split_emails(value):
+    if not value:
         return []
-    if isinstance(recipients, str):
-        recipients = [recipients]
+    raw = str(value).replace(";", ",")
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+def _unique_recipients(recipients):
     seen = set()
-    clean = []
-    for recipient in recipients:
-        email = (recipient or "").strip()
+    result = []
+    for email in recipients or []:
+        email = (email or "").strip()
+        if not email:
+            continue
         key = email.lower()
-        if email and key not in seen:
-            seen.add(key)
-            clean.append(email)
-    debug_to = current_app.config.get("EMAIL_DEBUG_TO")
-    return [debug_to] if debug_to else clean
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(email)
+    return result
 
 
-def send_email(recipients, subject, body):
-    to = _split_recipients(recipients)
-    if not to:
+def _required_smtp_config():
+    return {
+        "host": current_app.config.get("SMTP_HOST"),
+        "port": int(current_app.config.get("SMTP_PORT") or 587),
+        "use_tls": _as_bool(current_app.config.get("SMTP_USE_TLS"), True),
+        "use_ssl": _as_bool(current_app.config.get("SMTP_USE_SSL"), False),
+        "username": current_app.config.get("SMTP_USERNAME"),
+        "password": current_app.config.get("SMTP_PASSWORD"),
+        "sender": current_app.config.get("SMTP_FROM"),
+        "timeout": int(current_app.config.get("SMTP_TIMEOUT") or 10),
+    }
+
+
+def send_email(subject, body, recipients):
+    """Envía un email de texto plano o lo registra en logs según configuración.
+
+    Nunca debe romper el flujo principal de tickets: ante error, registra y devuelve False.
+    """
+    recipients = _unique_recipients(recipients)
+    debug_to = _split_emails(current_app.config.get("EMAIL_DEBUG_TO"))
+    if debug_to:
+        logger.info("EMAIL_DEBUG_TO activo: reemplazando destinatarios reales %s por %s", recipients, debug_to)
+        recipients = debug_to
+
+    if not recipients:
         logger.info("Email omitido por falta de destinatarios: %s", subject)
         return False
-    if not current_app.config.get("EMAIL_ENABLED"):
-        logger.info("Email omitido porque EMAIL_ENABLED=false: %s -> %s", subject, ", ".join(to))
+
+    enabled = _as_bool(current_app.config.get("EMAIL_ENABLED"), False)
+    dry_run = _as_bool(current_app.config.get("EMAIL_DRY_RUN"), True)
+
+    if not enabled:
+        logger.info("Email omitido porque EMAIL_ENABLED=false: %s -> %s", subject, ", ".join(recipients))
         return False
-    if current_app.config.get("EMAIL_DRY_RUN"):
-        logger.info("EMAIL_DRY_RUN: se enviaría '%s' a %s\n%s", subject, ", ".join(to), body)
+
+    if dry_run:
+        logger.info("Email dry-run: %s -> %s\n%s", subject, ", ".join(recipients), body)
         return True
 
-    host = current_app.config.get("SMTP_HOST")
-    sender = current_app.config.get("SMTP_FROM")
-    if not host or not sender:
-        logger.warning("Email omitido por configuración SMTP incompleta: SMTP_HOST/SMTP_FROM")
+    cfg = _required_smtp_config()
+    missing = [name for name in ("host", "username", "password", "sender") if not cfg.get(name)]
+    if missing:
+        logger.warning("Email omitido por configuración SMTP incompleta (%s): %s", ", ".join(missing), subject)
         return False
 
-    message = EmailMessage()
+    message = MIMEText(body or "", "plain", "utf-8")
     message["Subject"] = subject
-    message["From"] = sender
-    message["To"] = ", ".join(to)
-    message.set_content(body)
+    message["From"] = cfg["sender"]
+    message["To"] = ", ".join(recipients)
 
     try:
-        smtp_class = smtplib.SMTP_SSL if current_app.config.get("SMTP_USE_SSL") else smtplib.SMTP
-        with smtp_class(host, current_app.config.get("SMTP_PORT"), timeout=current_app.config.get("SMTP_TIMEOUT")) as smtp:
-            if current_app.config.get("SMTP_USE_TLS") and not current_app.config.get("SMTP_USE_SSL"):
+        if cfg["use_ssl"]:
+            smtp = smtplib.SMTP_SSL(cfg["host"], cfg["port"], timeout=cfg["timeout"])
+        else:
+            smtp = smtplib.SMTP(cfg["host"], cfg["port"], timeout=cfg["timeout"])
+        with smtp:
+            smtp.ehlo()
+            if cfg["use_tls"] and not cfg["use_ssl"]:
                 smtp.starttls()
-            username = current_app.config.get("SMTP_USERNAME")
-            password = current_app.config.get("SMTP_PASSWORD")
-            if username and password:
-                smtp.login(username, password)
-            smtp.send_message(message)
-        logger.info("Email enviado: %s -> %s", subject, ", ".join(to))
+                smtp.ehlo()
+            smtp.login(cfg["username"], cfg["password"])
+            envelope_sender = parseaddr(cfg["sender"])[1] or cfg["sender"]
+            smtp.sendmail(envelope_sender, recipients, message.as_string())
+        logger.info("Email enviado: %s -> %s", subject, ", ".join(recipients))
         return True
     except Exception:
-        logger.exception("Error enviando email: %s", subject)
+        logger.exception("Error enviando email: %s -> %s", subject, ", ".join(recipients))
         return False

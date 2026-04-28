@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -8,51 +9,17 @@ from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
 from app.extensions import db
-from app.models import Area, Ticket, TicketAttachment, TicketComment, TicketStatusHistory, TicketTemplate, TicketTransfer
+from app.models import Ticket, TicketAttachment, TicketComment, TicketStatusHistory, TicketTemplate, TicketTransfer
 from app.services.audit_service import log_action
 from app.services.notification_service import notification_service
-from app.services.permission_service import can_operate_ticket
 from app.time_utils import LOCAL_TZ, now_utc
 
-DEFAULT_ALLOWED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".txt", ".csv", ".xlsx", ".docx", ".zip"}
+ALLOWED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".txt", ".csv", ".xlsx", ".docx", ".zip"}
+logger = logging.getLogger(__name__)
 
 
 def candidate_uploads(files):
     return [file for file in files if isinstance(file, FileStorage) and file.filename]
-
-
-def allowed_upload_extensions():
-    raw = current_app.config.get("ALLOWED_UPLOAD_EXTENSIONS") or ""
-    if not raw:
-        return DEFAULT_ALLOWED_EXTENSIONS
-    return {f".{item.strip().lower().lstrip('.')}" for item in raw.split(",") if item.strip()}
-
-
-def file_size(file):
-    stream = file.stream
-    position = stream.tell()
-    stream.seek(0, os.SEEK_END)
-    size = stream.tell()
-    stream.seek(position)
-    return size
-
-
-def validate_attachment(file):
-    if not isinstance(file, FileStorage) or not file.filename:
-        return None, "Archivo vacío o sin nombre."
-    original = secure_filename(file.filename)
-    if not original:
-        return None, "Archivo vacío o sin nombre."
-    suffix = Path(original).suffix.lower()
-    if suffix not in allowed_upload_extensions():
-        return None, f"Formato no permitido: {suffix or 'sin extensión'}."
-    size = file_size(file)
-    if size <= 0:
-        return None, "Archivo vacío."
-    max_size = current_app.config.get("MAX_CONTENT_LENGTH")
-    if max_size and size > max_size:
-        return None, "El archivo supera el tamaño máximo permitido."
-    return {"original": original, "suffix": suffix, "size": size}, None
 
 
 def form_has_meaningful_free_content(form):
@@ -207,24 +174,24 @@ def allowed_status_actions(ticket, user):
     actions = []
 
     if ticket.ticket_type == "Registro de cambio":
-        if ticket.status != "Cerrado" and can_operate_ticket(ticket, user, "can_resolve_ticket"):
+        if ticket.status != "Cerrado" and user.has_permission("can_resolve_ticket"):
             actions.append(("Cerrado", "Cerrar"))
-        if ticket.status == "Cerrado" and can_operate_ticket(ticket, user, "can_reopen_ticket"):
+        if ticket.status == "Cerrado" and user.has_permission("can_reopen_ticket"):
             actions.append(("Reabierto", "Reabrir"))
         return actions
 
     status = ticket.status
-    if status in ("Nuevo", "Derivado", "Reabierto") and can_operate_ticket(ticket, user, "can_acknowledge_ticket"):
+    if status in ("Nuevo", "Derivado", "Reabierto") and user.has_permission("can_acknowledge_ticket"):
         actions.append(("Reconocido", "Reconocer"))
-    if status in ("Reconocido", "Derivado", "Pendiente de tercero", "Reabierto") and can_operate_ticket(ticket, user, "can_resolve_ticket"):
+    if status in ("Reconocido", "Derivado", "Pendiente de tercero", "Reabierto") and user.has_permission("can_resolve_ticket"):
         actions.append(("En curso", "Marcar en curso"))
-    if status in ("Reconocido", "En curso") and can_operate_ticket(ticket, user, "can_resolve_ticket"):
+    if status in ("Reconocido", "En curso") and user.has_permission("can_resolve_ticket"):
         actions.append(("Pendiente de tercero", "Pendiente de tercero"))
-    if status in ("Reconocido", "En curso", "Pendiente de tercero", "Derivado", "Reabierto") and can_operate_ticket(ticket, user, "can_resolve_ticket"):
+    if status in ("Reconocido", "En curso", "Pendiente de tercero", "Derivado", "Reabierto") and user.has_permission("can_resolve_ticket"):
         actions.append(("Resuelto", "Resolver"))
-    if status == "Resuelto" and can_operate_ticket(ticket, user, "can_resolve_ticket"):
+    if status == "Resuelto" and user.has_permission("can_resolve_ticket"):
         actions.append(("Cerrado", "Cerrar"))
-    if status == "Cerrado" and can_operate_ticket(ticket, user, "can_reopen_ticket"):
+    if status == "Cerrado" and user.has_permission("can_reopen_ticket"):
         actions.append(("Reabierto", "Reabrir"))
     return actions
 
@@ -234,6 +201,8 @@ def is_status_action_allowed(ticket, new_status, user):
 
 def change_status(ticket, new_status, user, comment=None):
     old_status = ticket.status
+    if old_status == new_status:
+        return False
     ticket.status = new_status
     ticket.updated_at = now_utc()
     if new_status == "Cerrado":
@@ -242,46 +211,41 @@ def change_status(ticket, new_status, user, comment=None):
         ticket.closed_at = None
     db.session.add(TicketStatusHistory(ticket=ticket, old_status=old_status, new_status=new_status, user_id=user.id, comment=comment))
     log_action("ticket_status_changed", "Ticket", ticket.id, old_value=old_status, new_value=new_status, user=user)
-    extra_hand_granted = False
-    if old_status != new_status and new_status in ("Resuelto", "Cerrado"):
-        try:
-            from app.services.game_service import grant_extra_hand_for_ticket_action
-
-            extra_hand_granted = grant_extra_hand_for_ticket_action(user, ticket, new_status)
-        except Exception:
-            current_app.logger.exception("No se pudo otorgar mano extra por ticket %s", ticket.number)
-    if new_status == "Resuelto":
-        notification_service.notify_ticket_resolved(ticket)
-    return extra_hand_granted
+    try:
+        if new_status == "Resuelto":
+            notification_service.notify_ticket_resolved(ticket)
+        elif new_status == "Reabierto":
+            notification_service.notify_ticket_reopened(ticket, actor=user)
+    except Exception:
+        logger.exception("No se pudo notificar cambio de estado del ticket %s", ticket.number)
+    return True
 
 
 def transfer_ticket(ticket, to_area_id, reason, user):
-    if not reason or not reason.strip():
-        raise ValueError("La explicación de la derivación es obligatoria.")
     if ticket.ticket_type != "Solicitud de intervención":
         raise ValueError("Solo las solicitudes de intervención pueden derivarse.")
     if ticket.status in ("Resuelto", "Cerrado"):
         raise ValueError("No se puede derivar un ticket resuelto o cerrado.")
-    try:
-        destination_id = int(to_area_id)
-    except (TypeError, ValueError):
-        raise ValueError("Seleccioná un área destino válida.") from None
-    if destination_id == ticket.responsible_area_id:
-        raise ValueError("El área destino debe ser distinta al área responsable actual.")
-    destination = Area.query.filter_by(id=destination_id, active=True).first()
-    if not destination:
-        raise ValueError("Seleccioná un área destino válida.")
+    if not reason or not reason.strip():
+        raise ValueError("La explicación de la derivación es obligatoria.")
+    if not to_area_id:
+        raise ValueError("Seleccioná el área destino.")
     old_area = ticket.responsible_area_id
-    old_area_obj = ticket.responsible_area
+    to_area_id = int(to_area_id)
+    if old_area == to_area_id:
+        raise ValueError("El área destino debe ser distinta del área responsable actual.")
     old_status = ticket.status
-    transfer = TicketTransfer(ticket=ticket, from_area=old_area_obj, to_area=destination, user_id=user.id, reason=reason.strip())
-    ticket.responsible_area_id = destination.id
+    transfer = TicketTransfer(ticket=ticket, from_area_id=old_area, to_area_id=to_area_id, user_id=user.id, reason=reason.strip())
+    ticket.responsible_area_id = to_area_id
     ticket.status = "Derivado"
     ticket.updated_at = now_utc()
     db.session.add(transfer)
-    db.session.add(TicketStatusHistory(ticket=ticket, old_status=old_status, new_status="Derivado", user_id=user.id, comment=reason.strip()))
-    log_action("ticket_transferred", "Ticket", ticket.id, old_value=str(old_area), new_value=str(destination.id), user=user)
-    notification_service.notify_ticket_transferred(ticket, transfer)
+    db.session.add(TicketStatusHistory(ticket=ticket, old_status=old_status, new_status="Derivado", user_id=user.id, comment=reason))
+    log_action("ticket_transferred", "Ticket", ticket.id, old_value=str(old_area), new_value=str(to_area_id), user=user)
+    try:
+        notification_service.notify_ticket_transferred(ticket, transfer)
+    except Exception:
+        logger.exception("No se pudo notificar derivación del ticket %s", ticket.number)
     return transfer
 
 
@@ -293,10 +257,22 @@ def add_comment(ticket, user, comment, comment_type=None):
     return item
 
 
+def configured_allowed_extensions():
+    raw = current_app.config.get("ALLOWED_UPLOAD_EXTENSIONS") or "pdf,png,jpg,jpeg,txt,csv,xlsx,docx,zip"
+    items = []
+    for item in str(raw).split(","):
+        item = item.strip().lower().lstrip(".")
+        if item:
+            items.append(f".{item}")
+    return set(items) or ALLOWED_EXTENSIONS
+
+
 def storage_root():
     root = Path(current_app.config["STORAGE_PATH"])
     try:
         root.mkdir(parents=True, exist_ok=True)
+        if not os.access(root, os.W_OK):
+            raise PermissionError(f"STORAGE_PATH no es escribible: {root}")
         return root
     except PermissionError:
         is_dev = current_app.config.get("RELEASE_VERSION") == "dev" or os.getenv("FLASK_ENV", "").lower() == "development"
@@ -308,38 +284,30 @@ def storage_root():
         return fallback
 
 
-def get_attachment_storage_path(ticket):
-    return storage_root() / "attachments" / ticket.number
-
-
 def save_attachments(ticket, files, user):
     valid_files = candidate_uploads(files)
     if not valid_files:
-        return {"saved": [], "errors": []}
+        return []
     saved = []
-    errors = []
-    try:
-        base = get_attachment_storage_path(ticket)
-        base.mkdir(parents=True, exist_ok=True)
-    except OSError as exc:
-        current_app.logger.exception("No se pudo preparar STORAGE_PATH para adjuntos del ticket %s", ticket.number)
-        return {"saved": [], "errors": [str(exc)]}
+    allowed_extensions = configured_allowed_extensions()
+    base = storage_root() / "attachments" / ticket.number
+    base.mkdir(parents=True, exist_ok=True)
     for file in valid_files:
-        metadata, error = validate_attachment(file)
-        if error:
-            errors.append(f"{file.filename}: {error}")
-            current_app.logger.warning("Adjunto rechazado en ticket %s: %s", ticket.number, error)
-            continue
-        original = metadata["original"]
-        suffix = metadata["suffix"]
-        storage_name = f"{uuid4().hex}{suffix}"
-        path = base / storage_name
         try:
+            original = secure_filename(file.filename or "")
+            if not original:
+                continue
+            suffix = Path(original).suffix.lower()
+            if suffix not in allowed_extensions:
+                logger.warning("Adjunto omitido por extensión no permitida: %s", original)
+                continue
+            storage_name = f"{uuid4().hex}{suffix}"
+            path = base / storage_name
             file.save(path)
             size = path.stat().st_size
             if size <= 0:
                 path.unlink(missing_ok=True)
-                errors.append(f"{file.filename}: Archivo vacío.")
+                logger.warning("Adjunto vacío omitido: %s", original)
                 continue
             attachment = TicketAttachment(
                 ticket=ticket,
@@ -352,9 +320,9 @@ def save_attachments(ticket, files, user):
             )
             db.session.add(attachment)
             saved.append(attachment)
-        except OSError as exc:
-            current_app.logger.exception("No se pudo guardar adjunto %s en ticket %s", original, ticket.number)
-            errors.append(f"{file.filename}: {exc}")
+        except Exception:
+            logger.exception("No se pudo guardar adjunto %s para ticket %s", getattr(file, "filename", ""), ticket.number)
+            continue
     if saved:
         log_action("ticket_attachments_added", "Ticket", ticket.id, new_value=str(len(saved)), user=user)
-    return {"saved": saved, "errors": errors}
+    return saved
