@@ -6,6 +6,7 @@ from app.models import Area, Ticket, TicketAttachment, TicketTemplate, TICKET_ST
 from app.services.permission_service import (
     can_operate_ticket,
     can_see_expanded_tickets,
+    can_transfer_ticket as user_can_transfer_ticket,
     can_view_ticket,
     get_visible_ticket_query,
     require_permission,
@@ -67,9 +68,11 @@ def create():
             uploaded_files = request.files.getlist("attachments")
             validate_ticket_minimum_content(request.form, uploaded_files)
             ticket = create_ticket(request.form, current_user)
-            save_attachments(ticket, uploaded_files, current_user)
+            attachment_result = save_attachments(ticket, uploaded_files, current_user)
             db.session.commit()
             flash(f"Ticket {ticket.number} creado.", "success")
+            if attachment_result["errors"]:
+                flash("El ticket fue guardado, pero no se pudo cargar uno o más adjuntos.", "warning")
             return redirect(url_for("tickets.detail", ticket_id=ticket.id))
         except ValueError as exc:
             db.session.rollback()
@@ -96,7 +99,7 @@ def detail(ticket_id):
         status_actions=allowed_status_actions(ticket, current_user),
         can_operate=can_operate_ticket(ticket, current_user),
         can_edit_ticket=can_operate_ticket(ticket, current_user, "can_edit_ticket"),
-        can_transfer_ticket=can_operate_ticket(ticket, current_user, "can_transfer_ticket"),
+        can_transfer_ticket=user_can_transfer_ticket(ticket, current_user),
     )
 
 
@@ -159,12 +162,12 @@ def status(ticket_id):
 @require_permission("can_transfer_ticket")
 def transfer(ticket_id):
     ticket = get_visible_ticket(ticket_id)
-    if not can_operate_ticket(ticket, current_user, "can_transfer_ticket"):
+    if not user_can_transfer_ticket(ticket, current_user):
         abort(403)
     try:
-        transfer_ticket(ticket, request.form.get("to_area_id"), request.form.get("reason"), current_user)
+        transfer = transfer_ticket(ticket, request.form.get("to_area_id"), request.form.get("reason"), current_user)
         db.session.commit()
-        flash("Ticket derivado.", "success")
+        flash(f"Ticket derivado correctamente a {transfer.to_area.name}.", "success")
     except ValueError as exc:
         flash(str(exc), "warning")
     return redirect(url_for("tickets.detail", ticket_id=ticket.id))
@@ -174,9 +177,23 @@ def transfer(ticket_id):
 @login_required
 def attachments(ticket_id):
     ticket = get_visible_ticket(ticket_id)
-    save_attachments(ticket, request.files.getlist("attachments"), current_user)
+    result = save_attachments(ticket, request.files.getlist("attachments"), current_user)
     db.session.commit()
+    if result["saved"]:
+        flash("Adjunto cargado correctamente.", "success")
+    if result["errors"]:
+        flash("No se pudo cargar el adjunto. Verificá el tamaño o formato.", "warning")
     return redirect(url_for("tickets.detail", ticket_id=ticket.id))
+
+
+@tickets_bp.get("/<int:ticket_id>/attachments/<int:attachment_id>/download")
+@login_required
+def download_ticket_attachment(ticket_id, attachment_id):
+    attachment = TicketAttachment.query.get_or_404(attachment_id)
+    if attachment.ticket_id != ticket_id:
+        abort(404)
+    get_visible_ticket(attachment.ticket_id)
+    return send_file(attachment.path, as_attachment=True, download_name=attachment.filename_original)
 
 
 @tickets_bp.get("/attachments/<int:attachment_id>")

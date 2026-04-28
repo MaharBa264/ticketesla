@@ -29,7 +29,7 @@ def login():
             login_user(user)
             log_action("login", "User", user.id, user=user)
             db.session.commit()
-            target = url_for("auth.complete_profile") if not user.gmail else url_for("dashboard.index")
+            target = url_for("profile.index") if not user.gmail else url_for("dashboard.index")
             response = make_response(redirect(target))
             if request.form.get("remember"):
                 cookie, expires = create_persistent_login(user)

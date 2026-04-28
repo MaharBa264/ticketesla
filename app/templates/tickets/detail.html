@@ -60,18 +60,20 @@
       {% else %}
         <p class="text-muted mb-0">No hay acciones disponibles para tu usuario en este estado.</p>
       {% endif %}
-      {% if can_transfer_ticket and ticket.ticket_type == 'Solicitud de intervención' and ticket.status not in ['Cerrado', 'Resuelto'] %}
+      {% if can_transfer_ticket %}
       <div class="soft-divider"></div>
       <form method="post" action="{{ url_for('tickets.transfer', ticket_id=ticket.id) }}" class="mt-3">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <label class="form-label">Enviar a otra área</label><select class="form-select" name="to_area_id">{% for area in areas %}<option value="{{ area.id }}">{{ area.name }}</option>{% endfor %}</select>
+        <label class="form-label">Enviar a otra área</label>
+        <p class="form-text mb-2">Usá esta opción solo si otra área debe continuar la atención del ticket.</p>
+        <select class="form-select" name="to_area_id" required>{% for area in areas %}{% if area.id != ticket.responsible_area_id %}<option value="{{ area.id }}">{{ area.name }}</option>{% endif %}{% endfor %}</select>
         <textarea class="form-control mt-2" name="reason" rows="3" placeholder="Explicación obligatoria" required></textarea>
-        <button class="btn btn-warning mt-2 w-100">Derivar</button>
+        <button class="btn btn-warning mt-2 w-100">Enviar a otra área</button>
       </form>
       {% endif %}
     </section>
     <section class="content-panel"><h2>Adjuntos</h2>
-      {% for a in ticket.attachments %}<a class="d-block fw-semibold mb-1" href="{{ url_for('tickets.download_attachment', attachment_id=a.id) }}">{{ a.filename_original }}</a>{% else %}<p class="text-muted">Sin adjuntos.</p>{% endfor %}
+      {% for a in ticket.attachments %}<a class="d-block fw-semibold mb-1" href="{{ url_for('tickets.download_ticket_attachment', ticket_id=ticket.id, attachment_id=a.id) }}">{{ a.filename_original }}</a>{% else %}<p class="text-muted">Sin adjuntos.</p>{% endfor %}
       <form method="post" enctype="multipart/form-data" action="{{ url_for('tickets.attachments', ticket_id=ticket.id) }}" class="mt-3"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input class="form-control" type="file" name="attachments" multiple><button class="btn btn-outline-primary mt-2">Subir</button></form>
     </section>
   </div>

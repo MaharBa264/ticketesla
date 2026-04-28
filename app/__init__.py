@@ -28,6 +28,7 @@ def create_app(config_class=Config):
     from app.blueprints.calendar.routes import calendar_bp
     from app.blueprints.dashboard.routes import dashboard_bp
     from app.blueprints.game.routes import game_bp
+    from app.blueprints.profile.routes import profile_bp
     from app.blueprints.templates_admin.routes import templates_bp
     from app.blueprints.tickets.routes import tickets_bp
     from app.blueprints.users.routes import users_bp
@@ -37,6 +38,7 @@ def create_app(config_class=Config):
     app.register_blueprint(tickets_bp)
     app.register_blueprint(calendar_bp)
     app.register_blueprint(game_bp)
+    app.register_blueprint(profile_bp)
     app.register_blueprint(templates_bp)
     app.register_blueprint(users_bp)
     app.register_blueprint(audit_bp)
@@ -59,13 +61,15 @@ def create_app(config_class=Config):
         if current_user.is_authenticated and not current_user.gmail:
             endpoint = request.endpoint or ""
             allowed_endpoints = {
-                "auth.complete_profile",
                 "auth.logout",
+                "api.logout",
+                "profile.index",
+                "profile.password",
                 "static",
                 "health",
             }
-            if endpoint not in allowed_endpoints and not endpoint.startswith("api."):
-                return redirect(url_for("auth.complete_profile", next=request.full_path))
+            if endpoint not in allowed_endpoints:
+                return redirect(url_for("profile.index", next=request.full_path))
 
     @app.context_processor
     def inject_helpers():

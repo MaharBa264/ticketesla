@@ -3,7 +3,7 @@ from flask_login import current_user, login_required, login_user, logout_user
 
 from app.extensions import db
 from app.models import Ticket, User
-from app.services.permission_service import can_operate_ticket, can_view_ticket, get_visible_ticket_query
+from app.services.permission_service import can_operate_ticket, can_transfer_ticket, can_view_ticket, get_visible_ticket_query
 from app.services.ticket_service import add_comment, change_status, create_ticket, transfer_ticket
 from app.time_utils import format_datetime_ar, now_utc
 
@@ -119,12 +119,13 @@ def ticket_resolve(ticket_id):
 @api_bp.post("/tickets/<int:ticket_id>/transfer")
 @login_required
 def ticket_transfer(ticket_id):
-    if not current_user.has_permission("can_transfer_ticket"):
-        abort(403)
     data = request.get_json() or {}
     ticket = Ticket.query.get_or_404(ticket_id)
-    if not can_operate_ticket(ticket, current_user, "can_transfer_ticket"):
+    if not can_transfer_ticket(ticket, current_user):
         abort(403)
-    transfer_ticket(ticket, data.get("to_area_id"), data.get("reason"), current_user)
+    try:
+        transfer_ticket(ticket, data.get("to_area_id"), data.get("reason"), current_user)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
     db.session.commit()
     return jsonify(ticket_payload(ticket))

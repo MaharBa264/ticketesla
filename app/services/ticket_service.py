@@ -8,17 +8,51 @@ from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
 from app.extensions import db
-from app.models import Ticket, TicketAttachment, TicketComment, TicketStatusHistory, TicketTemplate, TicketTransfer
+from app.models import Area, Ticket, TicketAttachment, TicketComment, TicketStatusHistory, TicketTemplate, TicketTransfer
 from app.services.audit_service import log_action
 from app.services.notification_service import notification_service
 from app.services.permission_service import can_operate_ticket
 from app.time_utils import LOCAL_TZ, now_utc
 
-ALLOWED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".txt", ".csv", ".xlsx", ".docx", ".zip"}
+DEFAULT_ALLOWED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".txt", ".csv", ".xlsx", ".docx", ".zip"}
 
 
 def candidate_uploads(files):
     return [file for file in files if isinstance(file, FileStorage) and file.filename]
+
+
+def allowed_upload_extensions():
+    raw = current_app.config.get("ALLOWED_UPLOAD_EXTENSIONS") or ""
+    if not raw:
+        return DEFAULT_ALLOWED_EXTENSIONS
+    return {f".{item.strip().lower().lstrip('.')}" for item in raw.split(",") if item.strip()}
+
+
+def file_size(file):
+    stream = file.stream
+    position = stream.tell()
+    stream.seek(0, os.SEEK_END)
+    size = stream.tell()
+    stream.seek(position)
+    return size
+
+
+def validate_attachment(file):
+    if not isinstance(file, FileStorage) or not file.filename:
+        return None, "Archivo vacío o sin nombre."
+    original = secure_filename(file.filename)
+    if not original:
+        return None, "Archivo vacío o sin nombre."
+    suffix = Path(original).suffix.lower()
+    if suffix not in allowed_upload_extensions():
+        return None, f"Formato no permitido: {suffix or 'sin extensión'}."
+    size = file_size(file)
+    if size <= 0:
+        return None, "Archivo vacío."
+    max_size = current_app.config.get("MAX_CONTENT_LENGTH")
+    if max_size and size > max_size:
+        return None, "El archivo supera el tamaño máximo permitido."
+    return {"original": original, "suffix": suffix, "size": size}, None
 
 
 def form_has_meaningful_free_content(form):
@@ -224,15 +258,29 @@ def change_status(ticket, new_status, user, comment=None):
 def transfer_ticket(ticket, to_area_id, reason, user):
     if not reason or not reason.strip():
         raise ValueError("La explicación de la derivación es obligatoria.")
+    if ticket.ticket_type != "Solicitud de intervención":
+        raise ValueError("Solo las solicitudes de intervención pueden derivarse.")
+    if ticket.status in ("Resuelto", "Cerrado"):
+        raise ValueError("No se puede derivar un ticket resuelto o cerrado.")
+    try:
+        destination_id = int(to_area_id)
+    except (TypeError, ValueError):
+        raise ValueError("Seleccioná un área destino válida.") from None
+    if destination_id == ticket.responsible_area_id:
+        raise ValueError("El área destino debe ser distinta al área responsable actual.")
+    destination = Area.query.filter_by(id=destination_id, active=True).first()
+    if not destination:
+        raise ValueError("Seleccioná un área destino válida.")
     old_area = ticket.responsible_area_id
+    old_area_obj = ticket.responsible_area
     old_status = ticket.status
-    transfer = TicketTransfer(ticket=ticket, from_area_id=old_area, to_area_id=int(to_area_id), user_id=user.id, reason=reason.strip())
-    ticket.responsible_area_id = int(to_area_id)
+    transfer = TicketTransfer(ticket=ticket, from_area=old_area_obj, to_area=destination, user_id=user.id, reason=reason.strip())
+    ticket.responsible_area_id = destination.id
     ticket.status = "Derivado"
     ticket.updated_at = now_utc()
     db.session.add(transfer)
-    db.session.add(TicketStatusHistory(ticket=ticket, old_status=old_status, new_status="Derivado", user_id=user.id, comment=reason))
-    log_action("ticket_transferred", "Ticket", ticket.id, old_value=str(old_area), new_value=str(to_area_id), user=user)
+    db.session.add(TicketStatusHistory(ticket=ticket, old_status=old_status, new_status="Derivado", user_id=user.id, comment=reason.strip()))
+    log_action("ticket_transferred", "Ticket", ticket.id, old_value=str(old_area), new_value=str(destination.id), user=user)
     notification_service.notify_ticket_transferred(ticket, transfer)
     return transfer
 
@@ -260,24 +308,53 @@ def storage_root():
         return fallback
 
 
+def get_attachment_storage_path(ticket):
+    return storage_root() / "attachments" / ticket.number
+
+
 def save_attachments(ticket, files, user):
     valid_files = candidate_uploads(files)
     if not valid_files:
-        return []
+        return {"saved": [], "errors": []}
     saved = []
-    base = storage_root() / "attachments" / ticket.number
-    base.mkdir(parents=True, exist_ok=True)
+    errors = []
+    try:
+        base = get_attachment_storage_path(ticket)
+        base.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        current_app.logger.exception("No se pudo preparar STORAGE_PATH para adjuntos del ticket %s", ticket.number)
+        return {"saved": [], "errors": [str(exc)]}
     for file in valid_files:
-        original = secure_filename(file.filename)
-        suffix = Path(original).suffix.lower()
-        if suffix not in ALLOWED_EXTENSIONS:
+        metadata, error = validate_attachment(file)
+        if error:
+            errors.append(f"{file.filename}: {error}")
+            current_app.logger.warning("Adjunto rechazado en ticket %s: %s", ticket.number, error)
             continue
+        original = metadata["original"]
+        suffix = metadata["suffix"]
         storage_name = f"{uuid4().hex}{suffix}"
         path = base / storage_name
-        file.save(path)
-        attachment = TicketAttachment(ticket=ticket, filename_original=original, filename_storage=storage_name, path=str(path), content_type=file.content_type, size=path.stat().st_size, uploaded_by=user.id)
-        db.session.add(attachment)
-        saved.append(attachment)
+        try:
+            file.save(path)
+            size = path.stat().st_size
+            if size <= 0:
+                path.unlink(missing_ok=True)
+                errors.append(f"{file.filename}: Archivo vacío.")
+                continue
+            attachment = TicketAttachment(
+                ticket=ticket,
+                filename_original=original,
+                filename_storage=storage_name,
+                path=str(path),
+                content_type=file.content_type,
+                size=size,
+                uploaded_by=user.id,
+            )
+            db.session.add(attachment)
+            saved.append(attachment)
+        except OSError as exc:
+            current_app.logger.exception("No se pudo guardar adjunto %s en ticket %s", original, ticket.number)
+            errors.append(f"{file.filename}: {exc}")
     if saved:
         log_action("ticket_attachments_added", "Ticket", ticket.id, new_value=str(len(saved)), user=user)
-    return saved
+    return {"saved": saved, "errors": errors}

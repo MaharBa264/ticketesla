@@ -87,6 +87,14 @@ def can_operate_ticket(ticket, user, permission_name=None):
     return ticket.responsible_area_id in visible_area_ids(user)
 
 
+def can_transfer_ticket(ticket, user):
+    if not ticket or ticket.ticket_type != "Solicitud de intervención":
+        return False
+    if ticket.status in ("Resuelto", "Cerrado"):
+        return False
+    return can_operate_ticket(ticket, user, "can_transfer_ticket")
+
+
 def get_visible_ticket_query(user, scope="visible"):
     query = Ticket.query
     if not user or not user.is_authenticated:

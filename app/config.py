@@ -26,6 +26,20 @@ class Config:
     PERMANENT_SESSION_LIFETIME = timedelta(days=1)
     MAX_CONTENT_LENGTH = int(os.getenv("MAX_UPLOAD_MB", "20")) * 1024 * 1024
     STORAGE_PATH = os.getenv("STORAGE_PATH", str(BASE_DIR / "storage"))
+    ALLOWED_UPLOAD_EXTENSIONS = os.getenv("ALLOWED_UPLOAD_EXTENSIONS", "pdf,png,jpg,jpeg,txt,csv,xlsx,docx,zip")
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
     RELEASE_VERSION = os.getenv("RELEASE_VERSION", "dev")
     TIMEZONE = "America/Argentina/San_Luis"
+    BASE_URL = os.getenv("BASE_URL", "").rstrip("/")
+    EMAIL_ENABLED = os.getenv("EMAIL_ENABLED", "false").lower() == "true"
+    EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "smtp")
+    EMAIL_DRY_RUN = os.getenv("EMAIL_DRY_RUN", "true").lower() == "true"
+    EMAIL_DEBUG_TO = os.getenv("EMAIL_DEBUG_TO", "")
+    SMTP_HOST = os.getenv("SMTP_HOST", "")
+    SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
+    SMTP_USE_SSL = os.getenv("SMTP_USE_SSL", "false").lower() == "true"
+    SMTP_USERNAME = os.getenv("SMTP_USERNAME", "")
+    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+    SMTP_FROM = os.getenv("SMTP_FROM", "")
+    SMTP_TIMEOUT = int(os.getenv("SMTP_TIMEOUT", "10"))

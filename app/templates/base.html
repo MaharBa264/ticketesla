@@ -43,6 +43,7 @@
           <strong>{{ current_user.full_name }}</strong>
           <span>{{ current_user.main_area.name }}</span>
         </div>
+        <a class="btn btn-light btn-sm app-logout" href="{{ url_for('profile.index') }}">Mi perfil</a>
         <form method="post" action="{{ url_for('auth.logout') }}" class="m-0">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn btn-light btn-sm app-logout">Salir</button>
