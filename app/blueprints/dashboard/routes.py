@@ -20,7 +20,7 @@ def index():
         "Nuevos": base.filter_by(status="Nuevo").count(),
         "Reconocidos": base.filter_by(status="Reconocido").count(),
         "En curso": base.filter_by(status="En curso").count(),
-        "PrÃ³ximos a vencer": base.filter(Ticket.status.in_(ACTIVE_TICKET_STATUSES), Ticket.due_at != None, Ticket.due_at >= now, Ticket.due_at <= now + timedelta(days=3)).count(),
+        "Próximos a vencer": base.filter(Ticket.status.in_(ACTIVE_TICKET_STATUSES), Ticket.due_at != None, Ticket.due_at >= now, Ticket.due_at <= now + timedelta(days=3)).count(),
         "Vencidos": base.filter(Ticket.status.in_(ACTIVE_TICKET_STATUSES), Ticket.due_at != None, Ticket.due_at < now).count(),
         "Resueltos recientes": base.filter(Ticket.status == "Resuelto", Ticket.updated_at >= now - timedelta(days=7)).count(),
     }
