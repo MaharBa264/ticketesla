@@ -78,7 +78,7 @@ def send_email(subject, body, recipients):
         return True
 
     cfg = _required_smtp_config()
-    missing = [name for name in ("host", "username", "password", "sender") if not cfg.get(name)]
+    missing = [name for name in ("host", "sender") if not cfg.get(name)]
     if missing:
         logger.warning("Email omitido por configuración SMTP incompleta (%s): %s", ", ".join(missing), subject)
         return False
@@ -98,7 +98,13 @@ def send_email(subject, body, recipients):
             if cfg["use_tls"] and not cfg["use_ssl"]:
                 smtp.starttls()
                 smtp.ehlo()
-            smtp.login(cfg["username"], cfg["password"])
+            if cfg["username"] or cfg["password"]:
+                if not (cfg["username"] and cfg["password"]):
+                    logger.warning("Email omitido por configuración SMTP incompleta (username/password parcial): %s", subject)
+                    return False
+                smtp.login(cfg["username"], cfg["password"])
+            else:
+                logger.info("SMTP sin autenticación: usando relay interno sin login")
             envelope_sender = parseaddr(cfg["sender"])[1] or cfg["sender"]
             smtp.sendmail(envelope_sender, recipients, message.as_string())
         logger.info("Email enviado: %s -> %s", subject, ", ".join(recipients))
