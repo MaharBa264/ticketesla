@@ -2,7 +2,7 @@
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/ticketesla}"
-REPO_URL="${REPO_URL:-}"
+REPO_URL="${REPO_URL:-https://github.com/MaharBa264/ticketesla.git}"
 BRANCH="${BRANCH:-main}"
 SERVICE="${SERVICE:-ticketesla.service}"
 BIND_URL="${BIND_URL:-http://127.0.0.1:8020/health}"
