@@ -3,7 +3,7 @@ from flask_login import current_user, login_required
 
 from app.extensions import db
 from app.models import Area, Ticket, TicketAttachment, TicketTemplate, TICKET_STATUSES, TICKET_SUBTYPES, TICKET_TYPES, PRIORITIES
-from app.services.permission_service import require_permission, visible_area_ids
+from app.services.permission_service import require_permission, visible_area_ids, can_transfer_ticket
 from app.services.audit_service import log_action
 from app.services.ticket_service import add_comment, allowed_status_actions, change_status, create_ticket, is_status_action_allowed, save_attachments, transfer_ticket, validate_ticket_minimum_content
 
@@ -80,7 +80,7 @@ def search():
 def detail(ticket_id):
     ticket = get_visible_ticket(ticket_id)
     areas = Area.query.filter_by(active=True).order_by(Area.name).all()
-    return render_template("tickets/detail.html", ticket=ticket, areas=areas, statuses=TICKET_STATUSES, status_actions=allowed_status_actions(ticket, current_user))
+    return render_template("tickets/detail.html", ticket=ticket, areas=areas, statuses=TICKET_STATUSES, status_actions=allowed_status_actions(ticket, current_user), can_transfer_ticket=can_transfer_ticket(ticket, current_user))
 
 
 @tickets_bp.route("/<int:ticket_id>/edit", methods=["GET", "POST"])

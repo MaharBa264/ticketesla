@@ -8,7 +8,7 @@ SERVICE="${SERVICE:-ticketesla.service}"
 BIND_URL="${BIND_URL:-http://127.0.0.1:8020/health}"
 
 if [ -z "$REPO_URL" ]; then
-  echo "Definí REPO_URL=https://github.com/tu-org/ticketesla.git"
+  echo "Definí REPO_URL=https://github.com/MaharBa264/ticketesla.git"
   exit 1
 fi
 
@@ -19,13 +19,18 @@ git clone --branch "$BRANCH" --depth 1 "$REPO_URL" "$release"
 ln -sfn "$APP_DIR/.env" "$release/.env"
 ln -sfn "$APP_DIR/storage" "$release/storage"
 ln -sfn "$APP_DIR/instance" "$release/instance"
-python3 -m venv "$release/.venv"
+PYTHON_BIN="${PYTHON_BIN:-/opt/ticketesla/.venv/bin/python}"
+"$PYTHON_BIN" -m venv "$release/.venv"
 "$release/.venv/bin/pip" install --upgrade pip
 "$release/.venv/bin/pip" install -r "$release/requirements.txt"
 cd "$release"
 export RELEASE_VERSION="$timestamp"
 "$release/.venv/bin/flask" db upgrade
-"$release/.venv/bin/flask" seed
+if "$release/.venv/bin/flask" --help | grep -q "  seed"; then
+  "$release/.venv/bin/flask" seed
+else
+  echo "No existe comando flask seed; se omite seed."
+fi
 ln -sfn "$release" "$APP_DIR/current"
 systemctl restart "$SERVICE"
 sleep 2
