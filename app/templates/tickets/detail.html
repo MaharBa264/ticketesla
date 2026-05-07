@@ -73,7 +73,7 @@
       {% endif %}
     </section>
     <section class="content-panel"><h2>Adjuntos</h2>
-      {% for a in ticket.attachments %}<a class="d-block fw-semibold mb-1" href="{{ url_for('tickets.download_ticket_attachment', ticket_id=ticket.id, attachment_id=a.id) }}">{{ a.filename_original }}</a>{% else %}<p class="text-muted">Sin adjuntos.</p>{% endfor %}
+      {% for a in ticket.attachments %}<a class="d-block fw-semibold mb-1" href="{{ url_for('tickets.download_attachment', ticket_id=ticket.id, attachment_id=a.id) }}">{{ a.filename_original }}</a>{% else %}<p class="text-muted">Sin adjuntos.</p>{% endfor %}
       <form method="post" enctype="multipart/form-data" action="{{ url_for('tickets.attachments', ticket_id=ticket.id) }}" class="mt-3"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input class="form-control" type="file" name="attachments" multiple><button class="btn btn-outline-primary mt-2">Subir</button></form>
     </section>
   </div>
